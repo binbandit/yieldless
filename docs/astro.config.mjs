@@ -45,7 +45,7 @@ export default defineConfig({
           attrs: {
             rel: "stylesheet",
             href:
-              "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
+              "https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,600;6..72,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
           },
         },
         {
@@ -57,7 +57,7 @@ export default defineConfig({
           tag: "meta",
           attrs: {
             name: "theme-color",
-            content: "#d86a3c",
+            content: "#0f766e",
           },
         },
       ],

@@ -16,19 +16,36 @@ hero:
 
 import { Card, CardGrid } from "@astrojs/starlight/components";
 
-<div class="yl-band">
-  <div class="yl-lead">
-    Yieldless gives you the parts people actually reach for in large TypeScript
-    backends, but it keeps them in ordinary JavaScript: tuples instead of
-    wrapper classes, <code>AbortSignal</code> instead of fibers, and
-    <code>await using</code> instead of a proprietary scope runtime.
+<div class="yl-landing-grid">
+  <div class="yl-band yl-intro-panel">
+    <div class="yl-section-kicker">Platform-native by design</div>
+    <div class="yl-lead">
+      Yieldless gives you the parts people actually reach for in large
+      TypeScript backends, but it keeps them in ordinary JavaScript: tuples
+      instead of wrapper classes, <code>AbortSignal</code> instead of fibers,
+      and <code>await using</code> instead of a proprietary scope runtime.
+    </div>
+    <ul class="yl-tag-list">
+      <li class="yl-tag">Tuple-based errors</li>
+      <li class="yl-tag">Abort-aware concurrency</li>
+      <li class="yl-tag">Node and Electron adapters</li>
+      <li class="yl-tag">Zero runtime dependencies</li>
+    </ul>
   </div>
-  <ul class="yl-tag-list">
-    <li class="yl-tag">Tuple-based errors</li>
-    <li class="yl-tag">Abort-aware concurrency</li>
-    <li class="yl-tag">Node and Electron adapters</li>
-    <li class="yl-tag">Zero runtime dependencies</li>
-  </ul>
+  <div class="yl-stat-stack">
+    <div class="yl-stat-card">
+      <span class="yl-stat-value">11</span>
+      <span class="yl-stat-label">focused modules</span>
+    </div>
+    <div class="yl-stat-card">
+      <span class="yl-stat-value">0</span>
+      <span class="yl-stat-label">runtime dependencies</span>
+    </div>
+    <div class="yl-stat-card">
+      <span class="yl-stat-value">34</span>
+      <span class="yl-stat-label">core tests shipping with the package</span>
+    </div>
+  </div>
 </div>
 
 ## The shape of the library
