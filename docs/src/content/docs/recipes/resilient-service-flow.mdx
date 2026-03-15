@@ -1,0 +1,74 @@
+---
+title: Resilient Service Flow
+description: A practical backend flow that combines tuples, retries, validation, routing, and cancellation.
+---
+
+This recipe shows the shape Yieldless is best at: an HTTP request that validates
+input, performs a few pieces of I/O, retries the flaky part, and returns a
+normal JSON response.
+
+## The moving parts
+
+- `yieldless/schema` validates input without throwing
+- `yieldless/retry` handles transient I/O noise
+- `yieldless/task` keeps sibling work under one cancellation signal
+- `yieldless/router` turns tuple results into a plain response
+
+## Route handler
+
+```ts
+import { safeTry } from "yieldless/error";
+import { parseSafe } from "yieldless/schema";
+import { safeRetry } from "yieldless/retry";
+import { NotFoundError, honoHandler } from "yieldless/router";
+import { runTaskGroup } from "yieldless/task";
+
+export const getRepository = honoHandler(async (c) => {
+  const [paramsError, params] = parseSafe(repositoryParamsSchema, c.req.param());
+  if (paramsError) {
+    return [paramsError, null];
+  }
+
+  const [repoError, repo] = await safeRetry(
+    async (_attempt, signal) => safeTry(loadRepository(params.id, signal)),
+    { maxAttempts: 3, baseDelayMs: 100 },
+  );
+
+  if (repoError) {
+    return [repoError, null];
+  }
+
+  if (repo === null) {
+    return [new NotFoundError("Repository not found"), null];
+  }
+
+  const payload = await runTaskGroup(async (group) => {
+    const refs = group.spawn((signal) => loadRefs(repo.path, signal));
+    const status = group.spawn((signal) => loadStatus(repo.path, signal));
+
+    return {
+      id: repo.id,
+      refs: await refs,
+      status: await status,
+    };
+  });
+
+  return [null, payload];
+});
+```
+
+## Why this holds up well in production
+
+- Validation failures never take the exception path.
+- If `loadRefs()` fails, `loadStatus()` is aborted immediately.
+- Retry timers are cancellable because they run through `AbortSignal`.
+- The handler body stays linear. There is no framework-specific DSL to learn.
+
+## Rules worth keeping
+
+<ul class="yl-checklist">
+  <li>Validate early and return early.</li>
+  <li>Retry only the noisy boundary, not the entire request.</li>
+  <li>Spawn sibling work only when both tasks should die together.</li>
+  <li>Map domain misses to explicit HTTP errors like <code>NotFoundError</code>.</li>
+</ul>

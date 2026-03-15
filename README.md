@@ -2,6 +2,8 @@
 
 Yieldless is a small TypeScript library for people who like the ergonomics of Effect-style code but do not want a custom runtime in the middle of everything.
 
+Full documentation lives at <https://binbandit.github.io/yieldless/>.
+
 The library is built around four ideas:
 
 - error handling as simple tuples
@@ -239,4 +241,7 @@ pnpm build
 pnpm check
 pnpm test
 pnpm test:watch
+pnpm docs:dev
+pnpm docs:build
+pnpm docs:check
 ```

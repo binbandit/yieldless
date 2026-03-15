@@ -5,7 +5,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "homepage": "https://github.com/binbandit/yieldless#readme",
+  "homepage": "https://binbandit.github.io/yieldless/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/binbandit/yieldless.git"
@@ -70,6 +70,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
+    "docs:build": "pnpm --dir docs build",
+    "docs:check": "pnpm --dir docs check",
+    "docs:dev": "pnpm --dir docs dev",
+    "docs:preview": "pnpm --dir docs preview",
     "test": "vitest run",
     "test:watch": "vitest"
   },

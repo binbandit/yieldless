@@ -1,0 +1,47 @@
+---
+title: yieldless/di
+description: Reader-lite dependency binding for plain functions.
+---
+
+`yieldless/di` is intentionally small. It binds stable dependencies at the
+application edge and returns the executable version of the function.
+
+## Exports
+
+<div class="yl-signature"><code>type Injectable&lt;Deps, Args extends unknown[], Return&gt; = (deps: Deps, ...args: Args) =&gt; Return</code></div>
+<div class="yl-signature"><code>inject(core, deps): (...args) =&gt; Return</code></div>
+
+## Example
+
+```ts
+import { inject } from "yieldless/di";
+
+const createHandler = (
+  deps: {
+    logger: { info(message: string): void };
+    audit: { write(message: string): Promise<void> };
+  },
+  repoId: string,
+) => {
+  deps.logger.info(`Loading ${repoId}`);
+  return deps.audit.write(`repo:${repoId}`);
+};
+
+const handler = inject(createHandler, {
+  logger: console,
+  audit,
+});
+```
+
+## Why this stays readable
+
+- All required dependencies are still visible in the function signature
+- There is no hidden container lookup
+- TypeScript enforces that the injected object satisfies `Deps` before the
+  returned function can be called
+
+## Use it for
+
+- Route handlers configured with repositories, loggers, and feature flags
+- CLI commands configured with a filesystem or process adapter
+- Background jobs configured with queues or telemetry sinks
