@@ -53,6 +53,10 @@
     "./ipc": {
       "types": "./dist/ipc.d.ts",
       "import": "./dist/ipc.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
     }
   },
   "scripts": {

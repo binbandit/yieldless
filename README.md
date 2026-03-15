@@ -17,6 +17,7 @@ The next layer adds practical backend pieces on top of those primitives:
 - schema adapters that stay in tuple-land
 - route handlers that turn tuple errors into HTTP responses
 - IPC bridges that keep tuple results intact across Electron boundaries
+- Node filesystem and subprocess wrappers that return tuples
 
 There are no runtime dependencies, and the package is split into subpath exports so callers can pull in only the piece they want.
 
@@ -197,6 +198,19 @@ import { createIpcMain, createIpcRenderer } from "yieldless/ipc";
 ```
 
 Tuple errors are serialized into plain objects before they cross the IPC boundary, so the renderer does not rely on Electron's lossy thrown-error conversion.
+
+### `yieldless/node`
+
+`yieldless/node` wraps the pieces of Node you usually touch in backend tools: filesystem calls and subprocess execution.
+
+```ts
+import { readFileSafe, runCommandSafe } from "yieldless/node";
+
+const [fileError, contents] = await readFileSafe(".git/HEAD");
+const [gitError, result] = await runCommandSafe("git", ["status", "--short"]);
+```
+
+Command failures come back as tuple errors with captured `stdout`, `stderr`, and exit status instead of rejected promises.
 
 ## Design Notes
 

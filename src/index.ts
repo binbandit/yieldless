@@ -33,6 +33,27 @@ export {
   serializeIpcError,
 } from "yieldless/ipc";
 
+export type {
+  CommandOptions,
+  CommandResult,
+  FilePath,
+  MakeDirectoryOptions,
+  RemovePathOptions,
+  WriteTextFileOptions,
+} from "yieldless/node";
+export {
+  accessSafe,
+  CommandError,
+  mkdirSafe,
+  readFileSafe,
+  readdirSafe,
+  rmSafe,
+  runCommand,
+  runCommandSafe,
+  statSafe,
+  writeFileSafe,
+} from "yieldless/node";
+
 export type { AsyncResource, ResourceAcquire, ResourceRelease } from "yieldless/resource";
 export { acquireResource } from "yieldless/resource";
 
