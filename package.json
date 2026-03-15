@@ -45,6 +45,10 @@
     "./schema": {
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"
+    },
+    "./router": {
+      "types": "./dist/router.d.ts",
+      "import": "./dist/router.js"
     }
   },
   "scripts": {

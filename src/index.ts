@@ -27,5 +27,23 @@ export type {
 } from "yieldless/schema";
 export { parseAsyncSafe, parseSafe } from "yieldless/schema";
 
+export type {
+  ErrorResponseBody,
+  HonoHandlerOptions,
+  HttpErrorOptions,
+  JsonContext,
+  TupleRouteHandler,
+} from "yieldless/router";
+export {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  honoHandler,
+  HttpError,
+  NotFoundError,
+  UnauthorizedError,
+  ValidationError,
+} from "yieldless/router";
+
 export type { TaskFactory, TaskGroup } from "yieldless/task";
 export { runTaskGroup } from "yieldless/task";

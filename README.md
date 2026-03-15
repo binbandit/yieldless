@@ -15,6 +15,7 @@ The next layer adds practical backend pieces on top of those primitives:
 - async context storage for request-scoped data and spans
 - tuple-native parallel combinators
 - schema adapters that stay in tuple-land
+- route handlers that turn tuple errors into HTTP responses
 
 There are no runtime dependencies, and the package is split into subpath exports so callers can pull in only the piece they want.
 
@@ -165,6 +166,26 @@ const [error, user] = parseSafe(userSchema, input);
 ```
 
 That keeps validation failures in the same `[error, value]` flow as the rest of the library.
+
+### `yieldless/router`
+
+`honoHandler` turns tuple-returning route handlers into ordinary `Response` objects.
+
+```ts
+import { honoHandler, NotFoundError } from "yieldless/router";
+
+const getUser = honoHandler(async (c) => {
+  const user = await loadUser(c.req.param("id"));
+
+  if (user === null) {
+    return [new NotFoundError("user not found"), null];
+  }
+
+  return [null, user];
+});
+```
+
+Known HTTP-style errors map to status codes automatically, and everything else falls back to a generic `500`.
 
 ## Design Notes
 
