@@ -16,6 +16,7 @@ The next layer adds practical backend pieces on top of those primitives:
 - tuple-native parallel combinators
 - schema adapters that stay in tuple-land
 - route handlers that turn tuple errors into HTTP responses
+- IPC bridges that keep tuple results intact across Electron boundaries
 
 There are no runtime dependencies, and the package is split into subpath exports so callers can pull in only the piece they want.
 
@@ -186,6 +187,16 @@ const getUser = honoHandler(async (c) => {
 ```
 
 Known HTTP-style errors map to status codes automatically, and everything else falls back to a generic `500`.
+
+### `yieldless/ipc`
+
+`createIpcMain` and `createIpcRenderer` wrap Electron's `handle()` / `invoke()` pair and keep everything in tuple form.
+
+```ts
+import { createIpcMain, createIpcRenderer } from "yieldless/ipc";
+```
+
+Tuple errors are serialized into plain objects before they cross the IPC boundary, so the renderer does not rely on Electron's lossy thrown-error conversion.
 
 ## Design Notes
 

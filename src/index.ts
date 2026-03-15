@@ -10,6 +10,29 @@ export { inject } from "yieldless/di";
 export type { SafeResult } from "yieldless/error";
 export { safeTry, safeTrySync, unwrap } from "yieldless/error";
 
+export type {
+  IpcBridge,
+  IpcClient,
+  IpcContract,
+  IpcHandler,
+  IpcMainLike,
+  IpcProcedure,
+  IpcRendererLike,
+  IpcResult,
+  IpcServer,
+  ProcedureArgs,
+  ProcedureData,
+  ProcedureError,
+  SerializedIpcError,
+} from "yieldless/ipc";
+export {
+  createIpcBridge,
+  createIpcMain,
+  createIpcRenderer,
+  deserializeIpcResult,
+  serializeIpcError,
+} from "yieldless/ipc";
+
 export type { AsyncResource, ResourceAcquire, ResourceRelease } from "yieldless/resource";
 export { acquireResource } from "yieldless/resource";
 

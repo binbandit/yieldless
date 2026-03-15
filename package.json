@@ -49,6 +49,10 @@
     "./router": {
       "types": "./dist/router.d.ts",
       "import": "./dist/router.js"
+    },
+    "./ipc": {
+      "types": "./dist/ipc.d.ts",
+      "import": "./dist/ipc.js"
     }
   },
   "scripts": {
