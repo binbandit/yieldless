@@ -29,11 +29,16 @@
     "./di": {
       "types": "./dist/di.d.ts",
       "import": "./dist/di.js"
+    },
+    "./retry": {
+      "types": "./dist/retry.d.ts",
+      "import": "./dist/retry.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm build && node --test test/**/*.test.mjs"
   },
   "keywords": [],
   "author": "",

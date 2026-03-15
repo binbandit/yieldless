@@ -9,6 +9,10 @@ The library is built around four ideas:
 - resource cleanup through native `await using`
 - dependency injection through plain functions
 
+The next layer adds practical backend pieces on top of those primitives:
+
+- retry loops with abort-aware backoff
+
 There are no runtime dependencies, and the package is split into subpath exports so callers can pull in only the piece they want.
 
 ## Status
@@ -98,6 +102,24 @@ const run = inject(handler, {
 run("world");
 ```
 
+### `yieldless/retry`
+
+`safeRetry` wraps tuple-returning operations with exponential backoff.
+
+```ts
+import { safeRetry } from "yieldless/retry";
+
+const result = await safeRetry(
+  async (_attempt, signal) => safeTry(fetchWithSignal(signal)),
+  {
+    maxAttempts: 5,
+    baseDelayMs: 100,
+  },
+);
+```
+
+The retry delay respects `AbortSignal`, so a canceled parent task does not leave timers hanging around.
+
 ## Design Notes
 
 The package leans on current platform features rather than inventing replacements for them:
@@ -121,4 +143,5 @@ That keeps the implementation small and makes the failure modes easier to reason
 pnpm install
 pnpm build
 pnpm check
+pnpm test
 ```

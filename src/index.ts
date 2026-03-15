@@ -7,5 +7,8 @@ export { safeTry, safeTrySync, unwrap } from "yieldless/error";
 export type { AsyncResource, ResourceAcquire, ResourceRelease } from "yieldless/resource";
 export { acquireResource } from "yieldless/resource";
 
+export type { RetryJitter, RetryOperation, RetryOptions, RetryState } from "yieldless/retry";
+export { safeRetry } from "yieldless/retry";
+
 export type { TaskFactory, TaskGroup } from "yieldless/task";
 export { runTaskGroup } from "yieldless/task";
