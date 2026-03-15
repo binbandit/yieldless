@@ -12,6 +12,7 @@ The library is built around four ideas:
 The next layer adds practical backend pieces on top of those primitives:
 
 - retry loops with abort-aware backoff
+- async context storage for request-scoped data and spans
 
 There are no runtime dependencies, and the package is split into subpath exports so callers can pull in only the piece they want.
 
@@ -119,6 +120,22 @@ const result = await safeRetry(
 ```
 
 The retry delay respects `AbortSignal`, so a canceled parent task does not leave timers hanging around.
+
+### `yieldless/context`
+
+`createContext` wraps `AsyncLocalStorage` without trying to turn it into a global container.
+
+```ts
+import { createContext, withSpan } from "yieldless/context";
+
+const requestContext = createContext<{ requestId: string }>();
+
+await requestContext.run({ requestId: crypto.randomUUID() }, async () => {
+  console.log(requestContext.expect().requestId);
+});
+```
+
+For tracing, `withSpan` works with a tracer that exposes `startActiveSpan`, which matches the OpenTelemetry style API.
 
 ## Design Notes
 

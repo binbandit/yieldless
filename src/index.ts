@@ -1,3 +1,6 @@
+export type { SpanLike, TracerLike, YieldlessContext } from "yieldless/context";
+export { createContext, createTraceContext, withSpan } from "yieldless/context";
+
 export type { Injectable } from "yieldless/di";
 export { inject } from "yieldless/di";
 

@@ -33,6 +33,10 @@
     "./retry": {
       "types": "./dist/retry.d.ts",
       "import": "./dist/retry.js"
+    },
+    "./context": {
+      "types": "./dist/context.d.ts",
+      "import": "./dist/context.js"
     }
   },
   "scripts": {
@@ -45,6 +49,7 @@
   "license": "ISC",
   "packageManager": "pnpm@10.32.1",
   "devDependencies": {
+    "@types/node": "^24.10.0",
     "typescript": "^5.5.4"
   }
 }
