@@ -14,6 +14,7 @@ The next layer adds practical backend pieces on top of those primitives:
 - retry loops with abort-aware backoff
 - async context storage for request-scoped data and spans
 - tuple-native parallel combinators
+- schema adapters that stay in tuple-land
 
 There are no runtime dependencies, and the package is split into subpath exports so callers can pull in only the piece they want.
 
@@ -152,6 +153,18 @@ const result = await all([
 ```
 
 If one task returns `[error, null]`, the shared signal is aborted before the utility returns.
+
+### `yieldless/schema`
+
+`parseSafe` adapts `safeParse()` and `parse()` style validators into tuple results.
+
+```ts
+import { parseSafe } from "yieldless/schema";
+
+const [error, user] = parseSafe(userSchema, input);
+```
+
+That keeps validation failures in the same `[error, value]` flow as the rest of the library.
 
 ## Design Notes
 

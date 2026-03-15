@@ -16,5 +16,16 @@ export { acquireResource } from "yieldless/resource";
 export type { RetryJitter, RetryOperation, RetryOptions, RetryState } from "yieldless/retry";
 export { safeRetry } from "yieldless/retry";
 
+export type {
+  ParseAsyncSchema,
+  ParseSchema,
+  SafeParseAsyncSchema,
+  SafeParseFailure,
+  SafeParseResult,
+  SafeParseSchema,
+  SafeParseSuccess,
+} from "yieldless/schema";
+export { parseAsyncSafe, parseSafe } from "yieldless/schema";
+
 export type { TaskFactory, TaskGroup } from "yieldless/task";
 export { runTaskGroup } from "yieldless/task";

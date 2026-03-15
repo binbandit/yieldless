@@ -41,6 +41,10 @@
     "./all": {
       "types": "./dist/all.d.ts",
       "import": "./dist/all.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
     }
   },
   "scripts": {
