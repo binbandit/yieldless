@@ -44,20 +44,19 @@ export default defineConfig({
           tag: "link",
           attrs: {
             rel: "stylesheet",
-            href:
-              "https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,600;6..72,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
+            href: "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap",
           },
         },
         {
           tag: "script",
           content:
-            "if (typeof localStorage !== 'undefined' && !localStorage.getItem('starlight-theme')) localStorage.setItem('starlight-theme', 'light');",
+            "if (typeof localStorage !== 'undefined') localStorage.setItem('starlight-theme', 'dark');",
         },
         {
           tag: "meta",
           attrs: {
             name: "theme-color",
-            content: "#0f766e",
+            content: "#0c0e12",
           },
         },
       ],
