@@ -13,6 +13,7 @@ The next layer adds practical backend pieces on top of those primitives:
 
 - retry loops with abort-aware backoff
 - async context storage for request-scoped data and spans
+- tuple-native parallel combinators
 
 There are no runtime dependencies, and the package is split into subpath exports so callers can pull in only the piece they want.
 
@@ -136,6 +137,21 @@ await requestContext.run({ requestId: crypto.randomUUID() }, async () => {
 ```
 
 For tracing, `withSpan` works with a tracer that exposes `startActiveSpan`, which matches the OpenTelemetry style API.
+
+### `yieldless/all`
+
+`all` and `race` run tuple tasks with a shared abort signal.
+
+```ts
+import { all } from "yieldless/all";
+
+const result = await all([
+  (signal) => readPrimary(signal),
+  (signal) => readReplica(signal),
+]);
+```
+
+If one task returns `[error, null]`, the shared signal is aborted before the utility returns.
 
 ## Design Notes
 

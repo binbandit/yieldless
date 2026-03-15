@@ -1,3 +1,6 @@
+export type { AllValues, ParallelError, ParallelOptions, SafeTask } from "yieldless/all";
+export { all, race } from "yieldless/all";
+
 export type { SpanLike, TracerLike, YieldlessContext } from "yieldless/context";
 export { createContext, createTraceContext, withSpan } from "yieldless/context";
 
