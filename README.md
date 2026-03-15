@@ -238,4 +238,5 @@ pnpm install
 pnpm build
 pnpm check
 pnpm test
+pnpm test:watch
 ```

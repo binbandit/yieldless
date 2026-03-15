@@ -146,6 +146,23 @@ export function serializeIpcError(error: unknown): SerializedIpcError {
   const record = getObjectRecord(error);
 
   if (record !== null) {
+    const extraKeys = Object.keys(record).filter(
+      (key) =>
+        key !== "name" &&
+        key !== "message" &&
+        key !== "code" &&
+        key !== "stack" &&
+        key !== "cause" &&
+        key !== "details",
+    );
+
+    const details =
+      "details" in record
+        ? record.details
+        : extraKeys.length > 0
+          ? Object.fromEntries(extraKeys.map((key) => [key, record[key]]))
+          : undefined;
+
     return buildSerializedIpcError(
       typeof record.name === "string" ? record.name : "Error",
       typeof record.message === "string"
@@ -155,7 +172,7 @@ export function serializeIpcError(error: unknown): SerializedIpcError {
         code: typeof record.code === "string" ? record.code : undefined,
         stack: typeof record.stack === "string" ? record.stack : undefined,
         cause: record.cause,
-        details: "details" in record ? record.details : error,
+        details,
       },
     );
   }

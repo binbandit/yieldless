@@ -1,10 +1,18 @@
 {
   "name": "yieldless",
   "version": "0.1.0",
-  "description": "Zero-runtime-bloat functional primitives for async TypeScript.",
+  "description": "Native async/await primitives for tuple-based errors, structured concurrency, and Node/Electron workflows.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "homepage": "https://github.com/binbandit/yieldless#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/binbandit/yieldless.git"
+  },
+  "bugs": {
+    "url": "https://github.com/binbandit/yieldless/issues"
+  },
   "sideEffects": false,
   "files": [
     "dist"
@@ -62,14 +70,25 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm build && node --test test/**/*.test.mjs"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "typescript",
+    "async-await",
+    "structured-concurrency",
+    "electron",
+    "ipc",
+    "nodejs",
+    "schema-validation",
+    "dependency-injection"
+  ],
+  "author": "BinBandit <crazywolf132@gmail.com>",
   "license": "ISC",
   "packageManager": "pnpm@10.32.1",
   "devDependencies": {
     "@types/node": "^24.10.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^4.1.0"
   }
 }
