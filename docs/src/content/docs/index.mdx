@@ -6,10 +6,10 @@ hero:
   tagline: Fewer moving parts. Better async code.
   actions:
     - text: Read the quickstart
-      link: /guides/quickstart/
+      link: /yieldless/guides/quickstart/
       icon: right-arrow
     - text: Browse the reference
-      link: /reference/error/
+      link: /yieldless/reference/error/
       icon: open-book
       variant: minimal
 ---
@@ -17,12 +17,12 @@ hero:
 import { Card, CardGrid } from "@astrojs/starlight/components";
 
 <div class="yl-band">
-  <p class="yl-lead">
+  <div class="yl-lead">
     Yieldless gives you the parts people actually reach for in large TypeScript
     backends, but it keeps them in ordinary JavaScript: tuples instead of
     wrapper classes, <code>AbortSignal</code> instead of fibers, and
     <code>await using</code> instead of a proprietary scope runtime.
-  </p>
+  </div>
   <ul class="yl-tag-list">
     <li class="yl-tag">Tuple-based errors</li>
     <li class="yl-tag">Abort-aware concurrency</li>
@@ -71,26 +71,26 @@ return await runTaskGroup(async (group) => {
 <div class="yl-advice-grid">
   <div class="yl-advice-card do">
     <strong>Native control flow</strong>
-    <p>
+    <div class="yl-copy">
       The library composes around <code>Promise</code>,
       <code>AbortController</code>, <code>AsyncLocalStorage</code>, and
       <code>Symbol.asyncDispose</code> instead of standing up a separate
       scheduler.
-    </p>
+    </div>
   </div>
   <div class="yl-advice-card do">
     <strong>Visible failure paths</strong>
-    <p>
+    <div class="yl-copy">
       If something can fail, the tuple is right there in front of you. There is
       no hidden exception channel unless you choose to rethrow.
-    </p>
+    </div>
   </div>
   <div class="yl-advice-card do">
     <strong>Incremental adoption</strong>
-    <p>
+    <div class="yl-copy">
       You can use one module at a time. There is no requirement to wrap the
       entire application in a framework-specific runtime.
-    </p>
+    </div>
   </div>
 </div>
 
@@ -98,23 +98,23 @@ return await runTaskGroup(async (group) => {
 
 <CardGrid stagger>
   <Card title="I want to start fast" icon="rocket">
-    Go to the [quickstart](/guides/quickstart/) for the shortest route from
+    Go to the [quickstart](/yieldless/guides/quickstart/) for the shortest route from
     install to working code.
   </Card>
   <Card title="I want the design rules" icon="pencil">
-    Read [Design Rules](/guides/design-rules/) for the philosophy behind the
+    Read [Design Rules](/yieldless/guides/design-rules/) for the philosophy behind the
     API surface and where the sharp edges are on purpose.
   </Card>
   <Card title="I want practical boundaries" icon="warning">
-    Read [Do and Don't](/guides/do-and-dont/) for the patterns worth repeating
+    Read [Do and Don't](/yieldless/guides/do-and-dont/) for the patterns worth repeating
     and the ones that usually make tuple-based code worse.
   </Card>
   <Card title="I need module details" icon="document">
-    The [reference section](/reference/error/) covers every exported module with
+    The [reference section](/yieldless/reference/error/) covers every exported module with
     signatures, examples, and rules of thumb.
   </Card>
   <Card title="I want end-to-end examples" icon="open-book">
-    The [recipes](/recipes/resilient-service-flow/) show how the small pieces
+    The [recipes](/yieldless/recipes/resilient-service-flow/) show how the small pieces
     combine in a service and in an Electron app.
   </Card>
 </CardGrid>
@@ -138,10 +138,10 @@ return await runTaskGroup(async (group) => {
 ## What it is not
 
 <div class="yl-note">
-  <p>
+  <div class="yl-copy">
     Yieldless is not trying to replace the JavaScript runtime. It does not ship
     fibers, effect interpreters, global service containers, or a replacement
     promise implementation. If a native platform feature is already good enough,
     Yieldless wraps it instead of competing with it.
-  </p>
+  </div>
 </div>

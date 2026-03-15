@@ -49,6 +49,11 @@ export default defineConfig({
           },
         },
         {
+          tag: "script",
+          content:
+            "if (typeof localStorage !== 'undefined' && !localStorage.getItem('starlight-theme')) localStorage.setItem('starlight-theme', 'light');",
+        },
+        {
           tag: "meta",
           attrs: {
             name: "theme-color",

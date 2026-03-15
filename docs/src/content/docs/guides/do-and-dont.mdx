@@ -11,15 +11,15 @@ real production pressure.
 <div class="yl-advice-grid">
   <div class="yl-advice-card do">
     <strong>Do keep the tuple close to the boundary.</strong>
-    <p>
+    <div class="yl-copy">
       Wrap I/O once, then pass domain values through the rest of the function.
-    </p>
+    </div>
   </div>
   <div class="yl-advice-card dont">
     <strong>Don't wrap every line in <code>safeTry()</code>.</strong>
-    <p>
+    <div class="yl-copy">
       If a function is already synchronous and pure, let it stay ordinary code.
-    </p>
+    </div>
   </div>
 </div>
 
@@ -36,17 +36,17 @@ if (parseError) return [parseError, null];
 <div class="yl-advice-grid">
   <div class="yl-advice-card do">
     <strong>Do pass the signal all the way into the I/O API.</strong>
-    <p>
+    <div class="yl-copy">
       Cancellation only matters when the transport or subprocess actually sees
       the signal.
-    </p>
+    </div>
   </div>
   <div class="yl-advice-card dont">
     <strong>Don't assume a task group can kill arbitrary CPU work.</strong>
-    <p>
+    <div class="yl-copy">
       `AbortSignal` is cooperative. If your code ignores it, the work keeps
       running.
-    </p>
+    </div>
   </div>
 </div>
 
@@ -55,17 +55,17 @@ if (parseError) return [parseError, null];
 <div class="yl-advice-grid">
   <div class="yl-advice-card do">
     <strong>Do retry transport failures and transient infrastructure noise.</strong>
-    <p>
+    <div class="yl-copy">
       Network timeouts, brief lock contentions, and flaky subprocess startup are
       reasonable candidates.
-    </p>
+    </div>
   </div>
   <div class="yl-advice-card dont">
     <strong>Don't retry validation failures or deterministic domain errors.</strong>
-    <p>
+    <div class="yl-copy">
       If the request shape is bad on attempt one, it will still be bad on
       attempt three.
-    </p>
+    </div>
   </div>
 </div>
 
@@ -74,17 +74,17 @@ if (parseError) return [parseError, null];
 <div class="yl-advice-grid">
   <div class="yl-advice-card do">
     <strong>Do bind stable dependencies at the edge.</strong>
-    <p>
+    <div class="yl-copy">
       Loggers, repositories, mailers, and feature flags are good candidates for
       `inject()`.
-    </p>
+    </div>
   </div>
   <div class="yl-advice-card dont">
     <strong>Don't build a hidden service locator around it.</strong>
-    <p>
+    <div class="yl-copy">
       If the dependencies are not obvious from the function signature, the code
       gets harder to review.
-    </p>
+    </div>
   </div>
 </div>
 
@@ -93,25 +93,25 @@ if (parseError) return [parseError, null];
 <div class="yl-advice-grid">
   <div class="yl-advice-card do">
     <strong>Do use async context for request-scoped metadata.</strong>
-    <p>
+    <div class="yl-copy">
       Trace spans, request IDs, user sessions, or a transaction handle fit well.
-    </p>
+    </div>
   </div>
   <div class="yl-advice-card dont">
     <strong>Don't use async context as your application container.</strong>
-    <p>
+    <div class="yl-copy">
       Configuration and stable dependencies should still be explicit.
-    </p>
+    </div>
   </div>
 </div>
 
 ## Boundaries
 
 <div class="yl-note">
-  <p>
+  <div class="yl-copy">
     A good rule of thumb: tuples are for work you expect to fail sometimes,
     thrown exceptions are for code that truly cannot continue. If a boundary
     requires exceptions, convert at that one spot with <code>unwrap()</code> and
     move on.
-  </p>
+  </div>
 </div>
