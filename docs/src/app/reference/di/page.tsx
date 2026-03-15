@@ -1,0 +1,97 @@
+import type { Metadata } from "next";
+import { CodeBlock } from "@/components/code-block";
+import { DocLayout } from "@/components/doc-layout";
+import { Signature } from "@/components/signature";
+
+export const metadata: Metadata = {
+  title: "yieldless/di",
+  description: "Reader-lite dependency binding for plain functions.",
+};
+
+export default async function DiPage() {
+  return (
+    <DocLayout
+      title="yieldless/di"
+      description="Reader-lite dependency binding for plain functions."
+    >
+      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
+        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
+          yieldless/di
+        </code>{" "}
+        is intentionally small. It binds stable dependencies at the application
+        edge and returns the executable version of the function.
+      </p>
+
+      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+        Exports
+      </h2>
+
+      <Signature>
+        {
+          "type Injectable<Deps, Args extends unknown[], Return> = (deps: Deps, ...args: Args) => Return"
+        }
+      </Signature>
+      <Signature>{"inject(core, deps): (...args) => Return"}</Signature>
+
+      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+        Example
+      </h2>
+
+      <CodeBlock
+        code={`import { inject } from "yieldless/di";
+
+const createHandler = (
+  deps: {
+    logger: { info(message: string): void };
+    audit: { write(message: string): Promise<void> };
+  },
+  repoId: string,
+) => {
+  deps.logger.info(\`Loading \${repoId}\`);
+  return deps.audit.write(\`repo:\${repoId}\`);
+};
+
+const handler = inject(createHandler, {
+  logger: console,
+  audit,
+});`}
+        lang="ts"
+      />
+
+      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+        Why this stays readable
+      </h2>
+
+      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+        <li>
+          All required dependencies are still visible in the function signature
+        </li>
+        <li>There is no hidden container lookup</li>
+        <li>
+          TypeScript enforces that the injected object satisfies{" "}
+          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
+            Deps
+          </code>{" "}
+          before the returned function can be called
+        </li>
+      </ul>
+
+      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+        Use it for
+      </h2>
+
+      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+        <li>
+          Route handlers configured with repositories, loggers, and feature
+          flags
+        </li>
+        <li>
+          CLI commands configured with a filesystem or process adapter
+        </li>
+        <li>
+          Background jobs configured with queues or telemetry sinks
+        </li>
+      </ul>
+    </DocLayout>
+  );
+}

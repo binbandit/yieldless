@@ -1,21 +1,29 @@
 {
   "name": "yieldless-docs",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
-  "version": "0.1.0",
   "scripts": {
-    "build": "astro build",
-    "check": "astro check",
-    "dev": "astro dev",
-    "preview": "astro preview"
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "check": "next lint && tsc --noEmit"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.38.1",
-    "astro": "^6.0.4",
-    "sharp": "^0.34.5"
+    "next": "^15.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "shiki": "^3.7.0",
+    "lucide-react": "^0.514.0",
+    "clsx": "^2.1.1"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.7",
-    "typescript": "^5.5.4"
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.6",
+    "typescript": "^5.8.3",
+    "@tailwindcss/postcss": "^4.1.8",
+    "tailwindcss": "^4.1.8",
+    "postcss": "^8.5.4"
   }
 }

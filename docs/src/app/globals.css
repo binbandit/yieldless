@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800&display=swap");
+}
+
+@theme inline {
+  --font-display: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Source Serif 4", Georgia, serif;
+  --font-mono: "Geist Mono", "SF Mono", ui-monospace, monospace;
+
+  --color-ground: #fafaf8;
+  --color-ground-elevated: #ffffff;
+  --color-ground-recessed: #f3f2ef;
+  --color-ink: #111111;
+  --color-ink-secondary: #555555;
+  --color-ink-tertiary: #888888;
+  --color-accent: #e14d2a;
+  --color-accent-hover: #c93d1d;
+  --color-accent-wash: rgba(225, 77, 42, 0.06);
+  --color-accent-muted: rgba(225, 77, 42, 0.12);
+  --color-success: #1a7a5c;
+  --color-success-wash: rgba(26, 122, 92, 0.06);
+  --color-danger: #b8352a;
+  --color-danger-wash: rgba(184, 53, 42, 0.06);
+  --color-rule: rgba(0, 0, 0, 0.09);
+  --color-rule-strong: rgba(0, 0, 0, 0.16);
+
+  --animate-fade-up: fade-up 0.4s ease both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark mode overrides */
+.dark {
+  --color-ground: #151515;
+  --color-ground-elevated: #1d1d1d;
+  --color-ground-recessed: #111111;
+  --color-ink: #e8e6e1;
+  --color-ink-secondary: #a3a09a;
+  --color-ink-tertiary: #706d68;
+  --color-accent: #f0714f;
+  --color-accent-hover: #f58a6e;
+  --color-accent-wash: rgba(240, 113, 79, 0.08);
+  --color-accent-muted: rgba(240, 113, 79, 0.14);
+  --color-success: #4ac19a;
+  --color-success-wash: rgba(74, 193, 154, 0.08);
+  --color-danger: #e8645a;
+  --color-danger-wash: rgba(232, 100, 90, 0.08);
+  --color-rule: rgba(255, 255, 255, 0.08);
+  --color-rule-strong: rgba(255, 255, 255, 0.14);
+}
+
+/* Global base */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+::selection {
+  background: var(--color-accent-muted);
+  color: var(--color-ink);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-rule-strong);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-tertiary);
+}
+
+/* Shiki code block theming */
+pre.shiki {
+  background: var(--color-ground-recessed) !important;
+}
+.dark pre.shiki {
+  background: #0f0f0f !important;
+}

@@ -71,9 +71,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "docs:build": "pnpm --dir docs build",
-    "docs:check": "pnpm --dir docs check",
     "docs:dev": "pnpm --dir docs dev",
-    "docs:preview": "pnpm --dir docs preview",
     "test": "vitest run",
     "test:watch": "vitest"
   },

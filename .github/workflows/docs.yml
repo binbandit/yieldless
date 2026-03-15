@@ -55,7 +55,7 @@ jobs:
           fi
 
           find "$PUBLISH_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-          cp -R docs/dist/. "$PUBLISH_DIR"/
+          cp -R docs/out/. "$PUBLISH_DIR"/
           touch "$PUBLISH_DIR/.nojekyll"
 
           cd "$PUBLISH_DIR"
