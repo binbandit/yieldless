@@ -44,19 +44,30 @@ export default defineConfig({
           tag: "link",
           attrs: {
             rel: "stylesheet",
-            href: "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap",
+            href: "https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800&display=swap",
           },
         },
         {
-          tag: "script",
-          content:
-            "if (typeof localStorage !== 'undefined') localStorage.setItem('starlight-theme', 'dark');",
+          tag: "link",
+          attrs: {
+            rel: "stylesheet",
+            href: "https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Geist+Mono:wght@400;500;600;700&display=swap",
+          },
         },
         {
           tag: "meta",
           attrs: {
             name: "theme-color",
-            content: "#0c0e12",
+            content: "#fafaf8",
+            media: "(prefers-color-scheme: light)",
+          },
+        },
+        {
+          tag: "meta",
+          attrs: {
+            name: "theme-color",
+            content: "#151515",
+            media: "(prefers-color-scheme: dark)",
           },
         },
       ],
