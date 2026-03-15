@@ -27,6 +27,7 @@ export interface CommandOptions {
   readonly cwd?: FilePath;
   readonly env?: NodeJS.ProcessEnv;
   readonly input?: string;
+  readonly signal?: AbortSignal;
   readonly windowsHide?: boolean;
 }
 
@@ -223,9 +224,11 @@ export async function runCommand(
     const child = spawn(file, [...args], {
       cwd: options.cwd,
       env: options.env,
+      signal: options.signal,
       stdio: "pipe",
       windowsHide: options.windowsHide ?? true,
     });
+    let pendingError: Error | null = null;
 
     child.stdout?.setEncoding("utf8");
     child.stdout?.on("data", (chunk: string): void => {
@@ -238,12 +241,24 @@ export async function runCommand(
     });
 
     child.once("error", (error: Error): void => {
-      reject(error);
+      pendingError = error;
     });
 
     child.once("close", (exitCode: number | null, signal: NodeJS.Signals | null): void => {
       const stdout = stdoutChunks.join("");
       const stderr = stderrChunks.join("");
+
+      if (pendingError !== null) {
+        reject(
+          Object.assign(pendingError, {
+            exitCode,
+            signal,
+            stderr,
+            stdout,
+          }),
+        );
+        return;
+      }
 
       if (exitCode === 0) {
         resolve({

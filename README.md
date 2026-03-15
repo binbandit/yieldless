@@ -212,6 +212,8 @@ const [gitError, result] = await runCommandSafe("git", ["status", "--short"]);
 
 Command failures come back as tuple errors with captured `stdout`, `stderr`, and exit status instead of rejected promises.
 
+If you pass an `AbortSignal`, the subprocess is terminated through Node's native child-process cancellation support and the wrapper does not settle until the child has actually closed.
+
 ## Design Notes
 
 The package leans on current platform features rather than inventing replacements for them:
