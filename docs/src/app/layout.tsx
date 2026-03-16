@@ -29,6 +29,7 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        <link rel="preconnect" href="https://api.fontshare.com" />
         <link
           href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800&display=swap"
           rel="stylesheet"
@@ -43,12 +44,14 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-ground font-body text-ink-secondary antialiased">
+      <body className="min-h-screen bg-ground font-body text-[15px] leading-[1.7] text-ink-secondary antialiased">
         <ThemeProvider>
           <Header />
-          <div className="mx-auto flex max-w-7xl px-6">
+          <div className="mx-auto flex max-w-[76rem] px-6 lg:px-8">
             <Sidebar />
-            <main className="min-w-0 flex-1 pl-0 lg:pl-10">{children}</main>
+            <main className="min-w-0 flex-1 border-l border-rule pl-0 lg:pl-10">
+              {children}
+            </main>
           </div>
         </ThemeProvider>
       </body>

@@ -14,62 +14,31 @@ export default async function RouterPage() {
       title="yieldless/router"
       description="Tuple-returning route handlers with HTTP error mapping."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          yieldless/router
-        </code>{" "}
-        turns tuple-native handlers into Hono-style JSON handlers.
+      <p>
+        <code>yieldless/router</code> turns tuple-native handlers into Hono-style JSON handlers.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Exports
       </h2>
 
       <Signature>{"honoHandler(handler, options)"}</Signature>
 
-      <h3 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+      <h3>
         Error classes
       </h3>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
-        <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            HttpError
-          </code>
-        </li>
-        <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            BadRequestError
-          </code>
-        </li>
-        <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            UnauthorizedError
-          </code>
-        </li>
-        <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            ForbiddenError
-          </code>
-        </li>
-        <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            NotFoundError
-          </code>
-        </li>
-        <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            ConflictError
-          </code>
-        </li>
-        <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            ValidationError
-          </code>
-        </li>
+      <ul>
+        <li><code>HttpError</code></li>
+        <li><code>BadRequestError</code></li>
+        <li><code>UnauthorizedError</code></li>
+        <li><code>ForbiddenError</code></li>
+        <li><code>NotFoundError</code></li>
+        <li><code>ConflictError</code></li>
+        <li><code>ValidationError</code></li>
       </ul>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Handler shape
       </h2>
 
@@ -77,7 +46,7 @@ export default async function RouterPage() {
         {"type TupleRouteHandler<Context, Data, ErrorType = Error> = (context: Context) => PromiseLike<SafeResult<Data, ErrorType>> | SafeResult<Data, ErrorType>"}
       </Signature>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Example
       </h2>
 
@@ -96,7 +65,7 @@ export const getRepository = honoHandler(async (c) => {
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         What the adapter does
       </h2>
 
@@ -117,17 +86,12 @@ export const getRepository = honoHandler(async (c) => {
               Success tuple
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                context.json(data, status)
-              </code>
+              <code>context.json(data, status)</code>
             </td>
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                HttpError
-              </code>{" "}
-              instance
+              <code>HttpError</code> instance
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Configured status code
@@ -143,30 +107,21 @@ export const getRepository = honoHandler(async (c) => {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                options.mapError()
-              </code>
+              <code>options.mapError()</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              Normalize custom domain errors into{" "}
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                HttpError
-              </code>
+              Normalize custom domain errors into <code>HttpError</code>
             </td>
           </tr>
         </tbody>
       </table>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         When this module is enough
       </h2>
 
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        If your framework only needs a{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          json()
-        </code>{" "}
-        method on the context, this adapter is usually enough.
+      <p>
+        If your framework only needs a <code>json()</code> method on the context, this adapter is usually enough.
       </p>
     </DocLayout>
   );

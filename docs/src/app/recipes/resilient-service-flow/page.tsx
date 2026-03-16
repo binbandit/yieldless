@@ -15,44 +15,32 @@ export default async function ResilientServiceFlowPage() {
       title="Resilient Service Flow"
       description="A practical backend flow that combines tuples, retries, validation, routing, and cancellation."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
+      <p>
         This recipe shows the shape Yieldless is best at: an HTTP request that
         validates input, performs a few pieces of I/O, retries the flaky part,
         and returns a normal JSON response.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         The moving parts
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            yieldless/schema
-          </code>{" "}
-          validates input without throwing
+          <code>yieldless/schema</code> validates input without throwing
         </li>
         <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            yieldless/retry
-          </code>{" "}
-          handles transient I/O noise
+          <code>yieldless/retry</code> handles transient I/O noise
         </li>
         <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            yieldless/task
-          </code>{" "}
-          keeps sibling work under one cancellation signal
+          <code>yieldless/task</code> keeps sibling work under one cancellation signal
         </li>
         <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            yieldless/router
-          </code>{" "}
-          turns tuple results into a plain response
+          <code>yieldless/router</code> turns tuple results into a plain response
         </li>
       </ul>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Route handler
       </h2>
 
@@ -98,29 +86,18 @@ export const getRepository = honoHandler(async (c) => {
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Why this holds up well in production
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>Validation failures never take the exception path.</li>
         <li>
-          If{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            loadRefs()
-          </code>{" "}
-          fails,{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            loadStatus()
-          </code>{" "}
-          is aborted immediately.
+          If <code>loadRefs()</code> fails, <code>loadStatus()</code> is aborted immediately.
         </li>
         <li>
           Retry timers are cancellable because they run through{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            AbortSignal
-          </code>
-          .
+          <code>AbortSignal</code>.
         </li>
         <li>
           The handler body stays linear. There is no framework-specific DSL to
@@ -128,12 +105,12 @@ export const getRepository = honoHandler(async (c) => {
         </li>
       </ul>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Rules worth keeping
       </h2>
 
       <Note>
-        <ul className="space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+        <ul>
           <li>Validate early and return early.</li>
           <li>
             Retry only the noisy boundary, not the entire request.
@@ -143,10 +120,7 @@ export const getRepository = honoHandler(async (c) => {
           </li>
           <li>
             Map domain misses to explicit HTTP errors like{" "}
-            <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-              NotFoundError
-            </code>
-            .
+            <code>NotFoundError</code>.
           </li>
         </ul>
       </Note>

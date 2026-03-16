@@ -16,19 +16,16 @@ export default async function NodePage() {
       title="yieldless/node"
       description="Tuple wrappers for Node filesystem work and child-process execution."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          yieldless/node
-        </code>{" "}
-        wraps the pieces of Node that backend tools and desktop apps touch
+      <p>
+        <code>yieldless/node</code> wraps the pieces of Node that backend tools and desktop apps touch
         constantly: filesystem calls and external commands.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Exports
       </h2>
 
-      <h3 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+      <h3>
         Filesystem
       </h3>
 
@@ -40,7 +37,7 @@ export default async function NodePage() {
       <Signature>{"rmSafe(path, options?)"}</Signature>
       <Signature>{"statSafe(path)"}</Signature>
 
-      <h3 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+      <h3>
         Processes
       </h3>
 
@@ -48,7 +45,7 @@ export default async function NodePage() {
       <Signature>{"runCommandSafe(file, args?, options?)"}</Signature>
       <Signature>{"CommandError"}</Signature>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Filesystem example
       </h2>
 
@@ -59,7 +56,7 @@ const [error, contents] = await readFileSafe(".git/HEAD");`}
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Child-process example
       </h2>
 
@@ -74,46 +71,31 @@ const [error, result] = await runCommandSafe(
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         runCommand() vs runCommandSafe()
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            runCommand()
-          </code>{" "}
-          throws on non-zero exit and returns{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            {"{ stdout, stderr, exitCode, signal }"}
-          </code>
+          <code>runCommand()</code> throws on non-zero exit and returns{" "}
+          <code>{"{ stdout, stderr, exitCode, signal }"}</code>
         </li>
         <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            runCommandSafe()
-          </code>{" "}
-          wraps that behavior into a tuple
+          <code>runCommandSafe()</code> wraps that behavior into a tuple
         </li>
       </ul>
 
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          CommandError
-        </code>{" "}
-        includes the command output, exit code, signal, and Node error code when
+      <p>
+        <code>CommandError</code> includes the command output, exit code, signal, and Node error code when
         one exists.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Cancellation
       </h2>
 
       <Note>
-        If you pass an{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          AbortSignal
-        </code>
-        , Yieldless forwards it to Node's native child-process signal handling
+        If you pass an <code>AbortSignal</code>, Yieldless forwards it to Node's native child-process signal handling
         and waits for the subprocess to close before it settles the wrapper
         promise.
       </Note>

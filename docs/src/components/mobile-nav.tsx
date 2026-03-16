@@ -15,23 +15,24 @@ export function MobileNav() {
   return (
     <div className="lg:hidden">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center justify-center p-2 text-ink-secondary hover:text-ink"
+        className="flex size-8 items-center justify-center rounded-md text-ink-tertiary transition-colors hover:bg-ground-recessed hover:text-ink"
         aria-label="Toggle navigation"
       >
-        {open ? <X className="size-5" /> : <Menu className="size-5" />}
+        {open ? <X className="size-[18px]" /> : <Menu className="size-[18px]" />}
       </button>
 
       {open && (
-        <div className="fixed inset-0 top-16 z-50 bg-ground">
-          <nav className="overflow-y-auto p-6">
+        <div className="fixed inset-0 top-14 z-50 overflow-y-auto bg-ground/98 backdrop-blur-sm">
+          <nav className="mx-auto max-w-lg p-6">
             <div className="flex flex-col gap-8">
               {navigation.map((group) => (
                 <div key={group.label}>
-                  <h4 className="mb-3 font-display text-[0.7rem] font-bold uppercase tracking-[0.08em] text-ink-tertiary">
+                  <h4 className="mb-2.5 px-3 font-display text-[0.65rem] font-bold uppercase tracking-[0.1em] text-ink-faint">
                     {group.label}
                   </h4>
-                  <ul className="flex flex-col gap-1">
+                  <ul className="flex flex-col gap-0.5">
                     {group.items.map((item) => {
                       const fullHref = `${basePath}${item.href}`;
                       const isActive =
@@ -42,10 +43,10 @@ export function MobileNav() {
                             href={item.href}
                             onClick={() => setOpen(false)}
                             className={clsx(
-                              "block px-3 py-2 font-display text-sm font-medium transition-colors",
+                              "block rounded-md px-3 py-2.5 font-display text-[0.875rem] transition-all",
                               isActive
-                                ? "text-accent font-semibold"
-                                : "text-ink-secondary hover:text-ink",
+                                ? "bg-accent-wash font-semibold text-accent"
+                                : "font-medium text-ink-secondary hover:bg-ground-recessed hover:text-ink",
                             )}
                           >
                             {item.title}

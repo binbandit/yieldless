@@ -15,22 +15,13 @@ export default async function AllPage() {
       title="yieldless/all"
       description="Tuple-aware parallel combinators that share cancellation."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          yieldless/all
-        </code>{" "}
-        gives you two helpers for tuple-returning parallel work:{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          all(tasks)
-        </code>{" "}
-        waits for every task or aborts siblings on the first error.{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          race(tasks)
-        </code>{" "}
-        resolves with the first settled result and aborts the rest.
+      <p>
+        <code>yieldless/all</code> gives you two helpers for tuple-returning parallel work:{" "}
+        <code>all(tasks)</code> waits for every task or aborts siblings on the first error.{" "}
+        <code>race(tasks)</code> resolves with the first settled result and aborts the rest.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Exports
       </h2>
 
@@ -44,7 +35,7 @@ export default async function AllPage() {
         {"race(tasks, options): Promise<SafeResult<Value, Error>>"}
       </Signature>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Example
       </h2>
 
@@ -59,57 +50,32 @@ const result = await all([
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Behavior notes
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            all([])
-          </code>{" "}
-          succeeds with an empty array.
+          <code>all([])</code> succeeds with an empty array.
         </li>
         <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            race([])
-          </code>{" "}
-          throws a{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            RangeError
-          </code>
-          .
+          <code>race([])</code> throws a <code>RangeError</code>.
         </li>
         <li>
-          If any task returns{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            [error, null]
-          </code>
-          , siblings are aborted before the final tuple is returned.
+          If any task returns <code>[error, null]</code>, siblings are aborted before the final tuple is returned.
         </li>
         <li>
           Thrown task failures are normalized into tuple failures internally.
         </li>
       </ul>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         When to prefer runTaskGroup() instead
       </h2>
 
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        Use{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          all()
-        </code>{" "}
-        and{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          race()
-        </code>{" "}
-        when the tasks are already tuple-native. Use{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          runTaskGroup()
-        </code>{" "}
-        when you want imperative fan-out and regular promise values.
+      <p>
+        Use <code>all()</code> and <code>race()</code> when the tasks are already tuple-native. Use{" "}
+        <code>runTaskGroup()</code> when you want imperative fan-out and regular promise values.
       </p>
     </DocLayout>
   );

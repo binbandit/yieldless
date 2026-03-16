@@ -15,52 +15,37 @@ export default async function SchemaPage() {
       title="yieldless/schema"
       description="Tuple adapters for safeParse(), parse(), safeParseAsync(), and parseAsync() style validators."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          yieldless/schema
-        </code>{" "}
-        keeps validation inside the same error model as the rest of the library.
+      <p>
+        <code>yieldless/schema</code> keeps validation inside the same error model as the rest of the library.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Exports
       </h2>
 
       <Signature>{"parseSafe(schema, input)"}</Signature>
       <Signature>{"parseAsyncSafe(schema, input)"}</Signature>
 
-      <h3 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+      <h3>
         Supported schema shapes
       </h3>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>
-          Objects with{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            safeParse()
-          </code>
+          Objects with <code>safeParse()</code>
         </li>
         <li>
-          Objects with{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            parse()
-          </code>
+          Objects with <code>parse()</code>
         </li>
         <li>
-          Objects with{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            safeParseAsync()
-          </code>
+          Objects with <code>safeParseAsync()</code>
         </li>
         <li>
-          Objects with{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            parseAsync()
-          </code>
+          Objects with <code>parseAsync()</code>
         </li>
       </ul>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Example with a safeParse() schema
       </h2>
 
@@ -74,7 +59,7 @@ if (error) {
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Example with an async parser
       </h2>
 
@@ -83,20 +68,20 @@ if (error) {
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Why it exists
       </h2>
 
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
+      <p>
         Most validation libraries are already good at describing schemas.
         Yieldless does not try to replace them.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Good fits
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>HTTP request validation</li>
         <li>Environment parsing</li>
         <li>Normalizing database payloads</li>

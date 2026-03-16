@@ -15,18 +15,12 @@ export default async function ContextPage() {
       title="yieldless/context"
       description="AsyncLocalStorage-based context and a small tracing helper for Node.js."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          yieldless/context
-        </code>{" "}
-        wraps Node&apos;s{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          AsyncLocalStorage
-        </code>{" "}
-        without turning it into a global application container.
+      <p>
+        <code>yieldless/context</code> wraps Node&apos;s{" "}
+        <code>AsyncLocalStorage</code> without turning it into a global application container.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Exports
       </h2>
 
@@ -38,7 +32,7 @@ export default async function ContextPage() {
         {"withSpan(tracer, context, name, fn): Promise<Return>"}
       </Signature>
 
-      <h3 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+      <h3>
         YieldlessContext&lt;T&gt;
       </h3>
 
@@ -56,9 +50,7 @@ export default async function ContextPage() {
         <tbody>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                run(value, fn)
-              </code>
+              <code>run(value, fn)</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Execute a function with the given context value
@@ -66,9 +58,7 @@ export default async function ContextPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                get()
-              </code>
+              <code>get()</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Return the current value or undefined
@@ -76,9 +66,7 @@ export default async function ContextPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                expect(message?)
-              </code>
+              <code>expect(message?)</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Return the current value or throw with an optional message
@@ -86,9 +74,7 @@ export default async function ContextPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                bind(fn)
-              </code>
+              <code>bind(fn)</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Capture the current context and bind it to a function
@@ -97,7 +83,7 @@ export default async function ContextPage() {
         </tbody>
       </table>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Example
       </h2>
 
@@ -112,42 +98,33 @@ await requestContext.run({ requestId: crypto.randomUUID() }, async () => {
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Tracing shape
       </h2>
 
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          withSpan()
-        </code>{" "}
-        expects a tracer with{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          startActiveSpan()
-        </code>{" "}
-        and a span with{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          end()
-        </code>
-        . That matches the OpenTelemetry style API closely without taking a
+      <p>
+        <code>withSpan()</code> expects a tracer with{" "}
+        <code>startActiveSpan()</code> and a span with{" "}
+        <code>end()</code>. That matches the OpenTelemetry style API closely without taking a
         hard runtime dependency on it.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Use it for
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>Request IDs</li>
         <li>Trace spans</li>
         <li>User session metadata</li>
         <li>Transaction handles</li>
       </ul>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Do not use it for
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>Static application dependencies</li>
         <li>Feature flags that are known at startup</li>
         <li>

@@ -14,15 +14,12 @@ export default async function DiPage() {
       title="yieldless/di"
       description="Reader-lite dependency binding for plain functions."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          yieldless/di
-        </code>{" "}
-        is intentionally small. It binds stable dependencies at the application
+      <p>
+        <code>yieldless/di</code> is intentionally small. It binds stable dependencies at the application
         edge and returns the executable version of the function.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Exports
       </h2>
 
@@ -33,7 +30,7 @@ export default async function DiPage() {
       </Signature>
       <Signature>{"inject(core, deps): (...args) => Return"}</Signature>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Example
       </h2>
 
@@ -58,29 +55,26 @@ const handler = inject(createHandler, {
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Why this stays readable
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>
           All required dependencies are still visible in the function signature
         </li>
         <li>There is no hidden container lookup</li>
         <li>
           TypeScript enforces that the injected object satisfies{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            Deps
-          </code>{" "}
-          before the returned function can be called
+          <code>Deps</code> before the returned function can be called
         </li>
       </ul>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Use it for
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>
           Route handlers configured with repositories, loggers, and feature
           flags

@@ -17,14 +17,14 @@ export default async function DoAndDontPage() {
       title="Do and Don't"
       description="Practical conventions that keep Yieldless code readable instead of ceremonial."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
+      <p>
         This page is the short list of habits that keep tuple-based code clean
         under real production pressure.
       </p>
 
       {/* ── Error handling ────────────────────────────────── */}
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Error handling
       </h2>
 
@@ -53,7 +53,7 @@ if (parseError) return [parseError, null];`}
 
       {/* ── Cancellation ──────────────────────────────────── */}
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Cancellation
       </h2>
 
@@ -72,17 +72,14 @@ if (parseError) return [parseError, null];`}
           title="Assume a task group can kill arbitrary CPU work."
         >
           <p>
-            <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-              AbortSignal
-            </code>{" "}
-            is cooperative. If your code ignores it, the work keeps running.
+            <code>AbortSignal</code> is cooperative. If your code ignores it, the work keeps running.
           </p>
         </AdviceCard>
       </AdviceGrid>
 
       {/* ── Retries ───────────────────────────────────────── */}
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Retries
       </h2>
 
@@ -109,7 +106,7 @@ if (parseError) return [parseError, null];`}
 
       {/* ── Dependency injection ──────────────────────────── */}
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Dependency injection
       </h2>
 
@@ -120,11 +117,7 @@ if (parseError) return [parseError, null];`}
         >
           <p>
             Loggers, repositories, mailers, and feature flags are good
-            candidates for{" "}
-            <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-              inject()
-            </code>
-            .
+            candidates for <code>inject()</code>.
           </p>
         </AdviceCard>
         <AdviceCard
@@ -140,7 +133,7 @@ if (parseError) return [parseError, null];`}
 
       {/* ── Context ───────────────────────────────────────── */}
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Context
       </h2>
 
@@ -166,7 +159,7 @@ if (parseError) return [parseError, null];`}
 
       {/* ── Boundaries ────────────────────────────────────── */}
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Boundaries
       </h2>
 
@@ -175,10 +168,7 @@ if (parseError) return [parseError, null];`}
           A good rule of thumb: tuples are for work you expect to fail
           sometimes, thrown exceptions are for code that truly cannot continue.
           If a boundary requires exceptions, convert at that one spot with{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            unwrap()
-          </code>{" "}
-          and move on.
+          <code>unwrap()</code> and move on.
         </p>
       </Note>
     </DocLayout>

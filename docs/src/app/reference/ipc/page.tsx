@@ -16,13 +16,13 @@ export default async function IpcPage() {
       title="yieldless/ipc"
       description="Typed Electron IPC helpers that preserve tuple results across the process boundary."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
+      <p>
         Electron IPC is a good place for Yieldless because the boundary is
         inherently failure-heavy and the transport only accepts
         structured-clone-safe data.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Exports
       </h2>
 
@@ -32,7 +32,7 @@ export default async function IpcPage() {
       <Signature>{"serializeIpcError(error)"}</Signature>
       <Signature>{"deserializeIpcResult(payload)"}</Signature>
 
-      <h3 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+      <h3>
         Core types
       </h3>
 
@@ -42,7 +42,7 @@ export default async function IpcPage() {
       <Signature>{"IpcBridge"}</Signature>
       <Signature>{"SerializedIpcError"}</Signature>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Contract example
       </h2>
 
@@ -55,7 +55,7 @@ type Contract = {
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Main process
       </h2>
 
@@ -68,7 +68,7 @@ server.handle("getStatus", async (_event, directory) => {
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Renderer process
       </h2>
 
@@ -78,7 +78,7 @@ const [error, result] = await client.invoke("getStatus", "/tmp/repo");`}
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Why the serialization layer matters
       </h2>
 
@@ -88,11 +88,11 @@ const [error, result] = await client.invoke("getStatus", "/tmp/repo");`}
         boundary, then decoding them back into tuple form on the receiving side.
       </Note>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Good fits
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>
           React or Vue renderers calling main-process Git operations
         </li>

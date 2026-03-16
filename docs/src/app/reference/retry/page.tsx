@@ -14,15 +14,12 @@ export default async function RetryPage() {
       title="yieldless/retry"
       description="Exponential backoff with jitter and abort-aware delays."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          yieldless/retry
-        </code>{" "}
-        wraps tuple-returning operations with exponential backoff and
+      <p>
+        <code>yieldless/retry</code> wraps tuple-returning operations with exponential backoff and
         abort-aware sleep.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Exports
       </h2>
 
@@ -30,7 +27,7 @@ export default async function RetryPage() {
         {"safeRetry(operation, options): Promise<SafeResult<T, E>>"}
       </Signature>
 
-      <h3 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+      <h3>
         Options
       </h3>
 
@@ -48,9 +45,7 @@ export default async function RetryPage() {
         <tbody>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                maxAttempts
-              </code>
+              <code>maxAttempts</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Total number of attempts including the first
@@ -58,9 +53,7 @@ export default async function RetryPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                baseDelayMs
-              </code>
+              <code>baseDelayMs</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Initial delay before the first retry
@@ -68,9 +61,7 @@ export default async function RetryPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                maxDelayMs
-              </code>
+              <code>maxDelayMs</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Upper bound on the computed delay
@@ -78,9 +69,7 @@ export default async function RetryPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                factor
-              </code>
+              <code>factor</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Multiplier applied to the delay after each attempt
@@ -88,9 +77,7 @@ export default async function RetryPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                jitter
-              </code>
+              <code>jitter</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Jitter strategy applied to the delay
@@ -98,9 +85,7 @@ export default async function RetryPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                signal
-              </code>
+              <code>signal</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               AbortSignal that stops the retry loop immediately
@@ -108,9 +93,7 @@ export default async function RetryPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                shouldRetry(error, attempt)
-              </code>
+              <code>shouldRetry(error, attempt)</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Predicate that decides whether to retry a given error
@@ -118,9 +101,7 @@ export default async function RetryPage() {
           </tr>
           <tr>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
-              <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-                onRetry(state)
-              </code>
+              <code>onRetry(state)</code>
             </td>
             <td className="border-b border-rule px-4 py-2.5 text-ink-secondary">
               Callback invoked before each retry attempt
@@ -129,7 +110,7 @@ export default async function RetryPage() {
         </tbody>
       </table>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Example
       </h2>
 
@@ -148,45 +129,38 @@ const [error, response] = await safeRetry(
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Operational rules
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>Attempt counts start at 1</li>
         <li>
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            maxAttempts
-          </code>{" "}
-          includes the first attempt
+          <code>maxAttempts</code> includes the first attempt
         </li>
         <li>
           The retry loop stops immediately when the parent signal is aborted
         </li>
         <li>
-          Jitter defaults to{" "}
-          <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-            "full"
-          </code>{" "}
-          to avoid herd behavior
+          Jitter defaults to <code>"full"</code> to avoid herd behavior
         </li>
       </ul>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Good retry targets
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>HTTP calls to other services</li>
         <li>Transient database connection failures</li>
         <li>Temporary subprocess startup issues</li>
       </ul>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Bad retry targets
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>Validation failures</li>
         <li>Permission errors</li>
         <li>Business-rule violations that are deterministic</li>

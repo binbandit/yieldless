@@ -35,33 +35,38 @@ const docSections = [
   {
     title: "Quickstart",
     href: "/guides/quickstart",
-    description: "Install, import, and run your first tuple-based error flow in under two minutes.",
+    desc: "Install and run your first tuple-based error flow.",
+    accent: "accent",
   },
   {
     title: "Design Rules",
     href: "/guides/design-rules",
-    description: "The principles that shape every API decision — and when to break them.",
+    desc: "The principles behind every API decision.",
+    accent: "success",
   },
   {
     title: "Do and Don't",
     href: "/guides/do-and-dont",
-    description: "Concrete patterns to adopt and anti-patterns to avoid in production code.",
+    desc: "Patterns to adopt and anti-patterns to avoid.",
+    accent: "rule-strong",
   },
   {
     title: "API Reference",
     href: "/reference/error",
-    description: "Complete signatures, return types, and edge-case notes for every exported function.",
+    desc: "Signatures, types, and edge-case notes.",
+    accent: "accent",
   },
   {
     title: "Recipes",
     href: "/recipes/resilient-service-flow",
-    description: "End-to-end walkthroughs for real-world scenarios: service layers, Electron IPC, and more.",
+    desc: "End-to-end real-world walkthroughs.",
+    accent: "success",
   },
 ];
 
 const moduleGroups = [
   {
-    label: "Core primitives",
+    label: "Core",
     modules: [
       { name: "error", href: "/reference/error" },
       { name: "task", href: "/reference/task" },
@@ -70,7 +75,7 @@ const moduleGroups = [
     ],
   },
   {
-    label: "Operational tools",
+    label: "Operational",
     modules: [
       { name: "retry", href: "/reference/retry" },
       { name: "context", href: "/reference/context" },
@@ -79,7 +84,7 @@ const moduleGroups = [
     ],
   },
   {
-    label: "Application boundaries",
+    label: "Boundaries",
     modules: [
       { name: "router", href: "/reference/router" },
       { name: "ipc", href: "/reference/ipc" },
@@ -88,103 +93,86 @@ const moduleGroups = [
   },
 ];
 
-const tags = [
-  "Tuple-based errors",
-  "Abort-aware concurrency",
-  "Node + Electron",
-  "Zero dependencies",
+const stats = [
+  { value: "11", label: "modules" },
+  { value: "0", label: "dependencies" },
+  { value: "34", label: "tests" },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="-ml-0 lg:-ml-10 max-w-none">
-      {/* ── Hero ─────────────────────────────────────────────── */}
-      <section className="relative border-b border-rule pb-20 pt-16 lg:pb-28 lg:pt-24">
-        <div className="mb-8 h-[3px] w-16 bg-accent" />
-
-        <h1
-          className="animate-fade-up font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-ink sm:text-5xl lg:text-6xl"
-          style={{ animationDelay: "0ms" }}
-        >
-          Fewer moving parts.
-          <br />
-          Better async code.
-        </h1>
-
-        <p
-          className="animate-fade-up mt-6 max-w-xl font-body text-lg leading-relaxed text-ink-secondary lg:text-xl"
-          style={{ animationDelay: "80ms" }}
-        >
-          Tuple-based errors, structured concurrency, and resource management
-          for TypeScript — built on the primitives you already have.
-        </p>
+    <div className="max-w-none">
+      {/* ── Hero ────────────────────────────────────── */}
+      <section className="relative pb-14 pt-14 lg:pb-20 lg:pt-24">
+        <div className="animate-fade-up">
+          <div className="mb-5 flex items-center gap-3">
+            <span className="h-[2px] w-8 bg-accent" />
+            <span className="font-display text-[10px] font-bold uppercase tracking-[0.14em] text-accent">
+              TypeScript async primitives
+            </span>
+          </div>
+          <h1 className="max-w-[13ch] font-display text-[clamp(2.2rem,5vw,3.75rem)] font-extrabold leading-[1.03] tracking-[-0.04em] text-ink">
+            Fewer moving parts.
+            <br />
+            <span className="text-ink-tertiary">Better async code.</span>
+          </h1>
+          <p
+            className="animate-fade-up mt-6 max-w-[42ch] text-[1rem] leading-[1.7] text-ink-secondary"
+            style={{ animationDelay: "80ms" }}
+          >
+            Tuple-based errors, structured concurrency, and resource management
+            — built on the primitives you already have.
+          </p>
+        </div>
 
         <div
-          className="animate-fade-up mt-10 flex flex-wrap gap-3"
-          style={{ animationDelay: "160ms" }}
+          className="animate-fade-up mt-8 flex flex-wrap items-center gap-3"
+          style={{ animationDelay: "140ms" }}
         >
           <Link
             href="/guides/quickstart"
-            className="inline-flex items-center bg-accent px-6 py-3 font-display text-sm font-bold text-white transition-colors hover:bg-accent-hover"
+            className="inline-flex items-center rounded-lg bg-accent px-5 py-2.5 font-display text-[13px] font-bold tracking-wide text-white shadow-sm transition-all hover:bg-accent-hover hover:shadow-md"
           >
             Get started
           </Link>
           <Link
             href="/reference/error"
-            className="inline-flex items-center border border-rule-strong px-6 py-3 font-display text-sm font-bold text-ink transition-colors hover:bg-ground-recessed"
+            className="inline-flex items-center rounded-lg border border-rule-strong bg-ground-elevated px-5 py-2.5 font-display text-[13px] font-bold tracking-wide text-ink shadow-sm transition-all hover:bg-ground-recessed hover:shadow-md"
           >
             API reference
           </Link>
+          <code className="ml-1 hidden rounded-md border border-rule bg-ground-recessed px-3 py-2 font-mono text-[12px] text-ink-tertiary sm:block">
+            pnpm add yieldless
+          </code>
         </div>
       </section>
 
-      {/* ── Intro + Stats ────────────────────────────────────── */}
+      {/* ── Code showcase ────────────────────────────── */}
       <section
-        className="animate-fade-up border-b border-rule py-16 lg:py-20"
-        style={{ animationDelay: "240ms" }}
+        className="animate-fade-up border-t border-rule py-12 lg:py-16"
+        style={{ animationDelay: "200ms" }}
       >
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_240px]">
-          {/* Intro panel */}
-          <div className="border-t-[3px] border-t-accent bg-ground-elevated p-8 lg:p-10">
-            <span className="font-display text-[0.7rem] font-bold uppercase tracking-[0.1em] text-accent">
-              Platform-native by design
-            </span>
-            <p className="mt-4 font-body text-lg leading-[1.72] text-ink-secondary lg:text-[1.15rem]">
-              Yieldless gives you the pieces people actually reach for in large
-              TypeScript codebases — but keeps them in ordinary JavaScript.
-              Tuples instead of wrapper classes. <code className="font-mono text-[0.88em] text-ink">AbortSignal</code> instead
-              of fibers. <code className="font-mono text-[0.88em] text-ink">await using</code> instead of a scope
-              runtime.
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="border border-rule bg-ground px-3 py-1 font-display text-xs font-semibold text-ink-secondary"
-                >
-                  {tag}
-                </span>
-              ))}
+        <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[1fr_180px]">
+          <div>
+            <div className="mb-5 flex items-center gap-3">
+              <span className="h-[2px] w-6 bg-accent" />
+              <span className="font-display text-[10px] font-bold uppercase tracking-[0.14em] text-accent">
+                How it looks
+              </span>
             </div>
+            <CodeBlock code={heroCode} lang="typescript" />
           </div>
-
-          {/* Stats sidebar */}
-          <div className="flex flex-row gap-px bg-rule lg:flex-col">
-            {[
-              { value: "11", label: "focused modules" },
-              { value: "0", label: "runtime dependencies" },
-              { value: "34", label: "tests ship with the package" },
-            ].map((stat) => (
+          <div className="flex gap-px rounded-lg bg-rule shadow-sm lg:flex-col">
+            {stats.map((s) => (
               <div
-                key={stat.label}
-                className="flex-1 bg-ground-elevated p-5 text-center lg:p-6 lg:text-left"
+                key={s.label}
+                className="flex-1 bg-ground-elevated px-5 py-4 text-center first:rounded-l-lg last:rounded-r-lg lg:text-left lg:first:rounded-l-none lg:first:rounded-tl-lg lg:last:rounded-r-none lg:last:rounded-br-lg"
               >
-                <div className="font-display text-3xl font-extrabold tracking-tight text-ink lg:text-4xl">
-                  {stat.value}
+                <div className="font-display text-2xl font-extrabold tracking-tight text-ink">
+                  {s.value}
                 </div>
-                <div className="mt-1 font-display text-xs font-medium text-ink-tertiary">
-                  {stat.label}
+                <div className="mt-0.5 font-display text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                  {s.label}
                 </div>
               </div>
             ))}
@@ -192,121 +180,86 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Two layers, one idea ─────────────────────────────── */}
-      <section
-        className="animate-fade-up border-b border-rule py-16 lg:py-20"
-        style={{ animationDelay: "320ms" }}
-      >
-        <div className="mb-2 h-[3px] w-10 bg-accent" />
-        <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-          Two layers, one idea
-        </h2>
-        <p className="mt-4 max-w-2xl font-body text-base leading-[1.72] text-ink-secondary lg:text-lg">
-          The <strong className="font-semibold text-ink">Core</strong> layer
-          gives you error tuples, structured tasks, and resource disposal.
-          The <strong className="font-semibold text-ink">Platform</strong> layer
-          wires them into Node, Electron IPC, and schema validation.
-          Both compose through plain <code className="font-mono text-[0.88em] text-ink">async/await</code>.
-        </p>
-
-        <div className="mt-8">
-          <CodeBlock code={heroCode} lang="typescript" />
+      {/* ── What it optimizes for ────────────────────── */}
+      <section className="border-t border-rule py-12 lg:py-16">
+        <div className="mb-6 flex items-center gap-3">
+          <span className="h-[2px] w-6 bg-success" />
+          <span className="font-display text-[10px] font-bold uppercase tracking-[0.14em] text-success">
+            Design goals
+          </span>
         </div>
-      </section>
-
-      {/* ── What it optimizes for ────────────────────────────── */}
-      <section
-        className="animate-fade-up border-b border-rule py-16 lg:py-20"
-        style={{ animationDelay: "400ms" }}
-      >
-        <div className="mb-2 h-[3px] w-10 bg-accent" />
-        <h2 className="mb-8 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+        <h2 className="mb-6 font-display text-xl font-bold tracking-tight text-ink">
           What it optimizes for
         </h2>
-
         <AdviceGrid>
           <AdviceCard variant="do" title="Native control flow">
-            Composes around <code className="font-mono text-[0.88em]">Promise</code>,{" "}
-            <code className="font-mono text-[0.88em]">AbortController</code>,{" "}
-            <code className="font-mono text-[0.88em]">AsyncLocalStorage</code>, and{" "}
-            <code className="font-mono text-[0.88em]">Symbol.asyncDispose</code> instead
-            of a separate scheduler.
+            Composes around <code>Promise</code>,{" "}
+            <code>AbortController</code>, <code>AsyncLocalStorage</code>, and{" "}
+            <code>Symbol.asyncDispose</code> instead of a separate scheduler.
           </AdviceCard>
           <AdviceCard variant="do" title="Visible failure paths">
-            If something can fail, the tuple is right there. No hidden
-            exception channel unless you choose to rethrow.
+            If something can fail, the tuple is right there. No hidden exception
+            channel unless you choose to rethrow.
           </AdviceCard>
           <AdviceCard variant="do" title="Incremental adoption">
-            Use one module at a time. No requirement to wrap your application
-            in a framework-specific runtime.
+            Use one module at a time. No requirement to wrap your application in
+            a framework-specific runtime.
           </AdviceCard>
         </AdviceGrid>
       </section>
 
-      {/* ── Find what you need ───────────────────────────────── */}
-      <section
-        className="animate-fade-up border-b border-rule py-16 lg:py-20"
-        style={{ animationDelay: "480ms" }}
-      >
-        <div className="mb-2 h-[3px] w-10 bg-accent" />
-        <h2 className="mb-8 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+      {/* ── Navigation cards ────────────────────────── */}
+      <section className="border-t border-rule py-12 lg:py-16">
+        <h2 className="mb-6 font-display text-xl font-bold tracking-tight text-ink">
           Find what you need
         </h2>
-
-        <div className="grid grid-cols-1 gap-px bg-rule sm:grid-cols-2 lg:grid-cols-3">
-          {docSections.map((section, i) => (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {docSections.map((s) => (
             <Link
-              key={section.href}
-              href={section.href}
-              className="group relative bg-ground-elevated p-6 transition-colors hover:bg-ground-recessed"
+              key={s.href}
+              href={s.href}
+              className="group relative rounded-lg border border-rule bg-ground-elevated p-5 shadow-[var(--shadow-card)] transition-all duration-200 hover:shadow-[var(--shadow-card-hover)]"
             >
               <div
-                className="absolute inset-x-0 top-0 h-[3px]"
+                className="absolute inset-x-4 top-0 h-[2px] rounded-b-full"
                 style={{
-                  backgroundColor:
-                    i % 3 === 0
-                      ? "var(--color-accent)"
-                      : i % 3 === 1
-                        ? "var(--color-success)"
-                        : "var(--color-rule-strong)",
+                  backgroundColor: `var(--color-${s.accent})`,
                 }}
               />
-              <h3 className="font-display text-[0.95rem] font-bold text-ink group-hover:text-accent">
-                {section.title}
+              <h3 className="font-display text-sm font-bold text-ink transition-colors group-hover:text-accent">
+                {s.title}
               </h3>
-              <p className="mt-2 font-body text-sm leading-relaxed text-ink-tertiary">
-                {section.description}
+              <p className="mt-2 text-[13px] leading-relaxed text-ink-tertiary">
+                {s.desc}
               </p>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* ── Module map ───────────────────────────────────────── */}
-      <section
-        className="animate-fade-up border-b border-rule py-16 lg:py-20"
-        style={{ animationDelay: "560ms" }}
-      >
-        <div className="mb-2 h-[3px] w-10 bg-accent" />
-        <h2 className="mb-8 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+      {/* ── Module map ──────────────────────────────── */}
+      <section className="border-t border-rule py-12 lg:py-16">
+        <h2 className="mb-6 font-display text-xl font-bold tracking-tight text-ink">
           Module map
         </h2>
-
-        <div className="grid grid-cols-1 gap-px bg-rule sm:grid-cols-3">
-          {moduleGroups.map((group) => (
-            <div key={group.label} className="bg-ground-elevated p-6">
-              <h3 className="mb-4 font-display text-[0.7rem] font-bold uppercase tracking-[0.08em] text-ink-tertiary">
-                {group.label}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {moduleGroups.map((g) => (
+            <div
+              key={g.label}
+              className="rounded-lg border border-rule bg-ground-elevated p-5 shadow-[var(--shadow-card)]"
+            >
+              <h3 className="mb-3 font-display text-[10px] font-bold uppercase tracking-[0.12em] text-ink-faint">
+                {g.label}
               </h3>
-              <ul className="flex flex-col gap-2">
-                {group.modules.map((mod) => (
-                  <li key={mod.name}>
+              <ul className="flex flex-col gap-1.5">
+                {g.modules.map((m) => (
+                  <li key={m.name}>
                     <Link
-                      href={mod.href}
-                      className="group inline-flex items-center gap-2 font-mono text-sm text-ink transition-colors hover:text-accent"
+                      href={m.href}
+                      className="group inline-flex items-center gap-2.5 font-mono text-[12.5px] text-ink-secondary transition-colors hover:text-accent"
                     >
-                      <span className="inline-block h-px w-3 bg-rule-strong transition-colors group-hover:bg-accent" />
-                      yieldless/{mod.name}
+                      <span className="inline-block h-px w-3 bg-rule-strong transition-all group-hover:w-4 group-hover:bg-accent" />
+                      yieldless/{m.name}
                     </Link>
                   </li>
                 ))}
@@ -316,35 +269,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── What it is not ───────────────────────────────────── */}
-      <section
-        className="animate-fade-up py-16 lg:py-20"
-        style={{ animationDelay: "640ms" }}
-      >
-        <div className="mb-2 h-[3px] w-10 bg-accent" />
-        <h2 className="mb-8 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-          What it is not
-        </h2>
-
+      {/* ── What it is not ──────────────────────────── */}
+      <section className="border-t border-rule py-12 lg:py-16">
         <Note>
           Yieldless does not ship fibers, effect interpreters, global service
-          containers, or a replacement promise implementation. It is a focused
-          set of utilities that compose with the runtime you already use — and
-          stays out of the way when you don&apos;t need it.
+          containers, or a replacement promise implementation. It composes with
+          the runtime you already use — and stays out of the way when you
+          don&apos;t need it.
         </Note>
-
-        <div className="mt-12 flex items-center gap-6">
+        <div className="mt-10 flex items-center gap-5">
           <Link
             href="/guides/quickstart"
-            className="inline-flex items-center bg-accent px-6 py-3 font-display text-sm font-bold text-white transition-colors hover:bg-accent-hover"
+            className="inline-flex items-center rounded-lg bg-accent px-5 py-2.5 font-display text-[13px] font-bold tracking-wide text-white shadow-sm transition-all hover:bg-accent-hover hover:shadow-md"
           >
             Get started
           </Link>
           <Link
             href="/guides/design-rules"
-            className="font-display text-sm font-semibold text-accent transition-colors hover:text-accent-hover"
+            className="font-display text-[13px] font-semibold text-accent transition-colors hover:text-accent-hover"
           >
-            Read the design rules &rarr;
+            Design rules &rarr;
           </Link>
         </div>
       </section>

@@ -14,18 +14,14 @@ export default async function ElectronGitClientPage() {
       title="Electron Git Client"
       description="An end-to-end shape for a desktop Git app using IPC tuples, abortable subprocesses, and typed renderer calls."
     >
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
+      <p>
         Yieldless fits Electron well because the important boundaries in an
         Electron app are all failure-heavy: the renderer asks for work through
         IPC, the main process touches the filesystem, the main process launches
-        long-running child processes like{" "}
-        <code className="rounded-sm border border-rule bg-ground-recessed px-1.5 py-0.5 font-mono text-[0.88em] text-ink">
-          git clone
-        </code>
-        .
+        long-running child processes like <code>git clone</code>.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Main-process contract
       </h2>
 
@@ -43,7 +39,7 @@ type GitContract = {
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Main-process implementation
       </h2>
 
@@ -72,13 +68,13 @@ ipc.handle("cloneRepository", async (_event, url, directory) => {
         lang="ts"
       />
 
-      <p className="mt-4 font-body text-base leading-[1.78] text-ink-secondary">
+      <p>
         If the window is torn down or a parent task group is canceled, the
         subprocess is aborted through Node's native child-process signal
         handling.
       </p>
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Preload bridge
       </h2>
 
@@ -94,7 +90,7 @@ export const gitBridge = createIpcBridge(client, [
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Renderer usage
       </h2>
 
@@ -113,11 +109,11 @@ openRepository(result.path);`}
         lang="ts"
       />
 
-      <h2 className="mt-14 mb-4 pb-3 border-b-2 border-ink font-display text-2xl font-bold tracking-tight text-ink">
+      <h2>
         Why this boundary feels cleaner
       </h2>
 
-      <ul className="mt-4 space-y-1.5 pl-5 text-ink-secondary list-disc marker:text-accent">
+      <ul>
         <li>
           The renderer never depends on Electron's lossy thrown-error
           conversion.
