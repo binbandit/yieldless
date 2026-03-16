@@ -1,0 +1,49 @@
+# yieldless/context
+
+
+
+`yieldless/context` wraps Node's `AsyncLocalStorage` without turning it into a global application container.
+
+Exports [#exports]
+
+* `createContext<T>(): YieldlessContext<T>`
+* `createTraceContext<Span>(): YieldlessContext<Span>`
+* `withSpan(tracer, context, name, fn): Promise<Return>`
+
+YieldlessContext<T> [#yieldlesscontextt]
+
+| Method             | Description                                                |
+| ------------------ | ---------------------------------------------------------- |
+| `run(value, fn)`   | Execute a function with the given context value            |
+| `get()`            | Return the current value or undefined                      |
+| `expect(message?)` | Return the current value or throw with an optional message |
+| `bind(fn)`         | Capture the current context and bind it to a function      |
+
+Example [#example]
+
+```ts
+import { createContext, withSpan } from "yieldless/context";
+
+const requestContext = createContext<{ requestId: string }>();
+
+await requestContext.run({ requestId: crypto.randomUUID() }, async () => {
+  console.log(requestContext.expect().requestId);
+});
+```
+
+Tracing shape [#tracing-shape]
+
+`withSpan()` expects a tracer with `startActiveSpan()` and a span with `end()`. That matches the OpenTelemetry style API closely without taking a hard runtime dependency on it.
+
+Use it for [#use-it-for]
+
+* Request IDs
+* Trace spans
+* User session metadata
+* Transaction handles
+
+Do not use it for [#do-not-use-it-for]
+
+* Static application dependencies
+* Feature flags that are known at startup
+* Anything that would be clearer as a regular function argument

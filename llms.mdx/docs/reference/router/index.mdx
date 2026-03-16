@@ -1,0 +1,52 @@
+# yieldless/router
+
+
+
+`yieldless/router` turns tuple-native handlers into Hono-style JSON handlers.
+
+Exports [#exports]
+
+* `honoHandler(handler, options)`
+
+Error classes [#error-classes]
+
+* `HttpError`
+* `BadRequestError`
+* `UnauthorizedError`
+* `ForbiddenError`
+* `NotFoundError`
+* `ConflictError`
+* `ValidationError`
+
+Handler shape [#handler-shape]
+
+* `type TupleRouteHandler<Context, Data, ErrorType = Error> = (context: Context) => PromiseLike<SafeResult<Data, ErrorType>> | SafeResult<Data, ErrorType>`
+
+Example [#example]
+
+```ts
+import { honoHandler, NotFoundError } from "yieldless/router";
+
+export const getRepository = honoHandler(async (c) => {
+  const repo = await findRepository(c.req.param("id"));
+
+  if (repo === null) {
+    return [new NotFoundError("Repository not found"), null];
+  }
+
+  return [null, repo];
+});
+```
+
+What the adapter does [#what-the-adapter-does]
+
+| Input                | Output                                          |
+| -------------------- | ----------------------------------------------- |
+| Success tuple        | `context.json(data, status)`                    |
+| `HttpError` instance | Configured status code                          |
+| Unknown error        | Generic 500                                     |
+| `options.mapError()` | Normalize custom domain errors into `HttpError` |
+
+When this module is enough [#when-this-module-is-enough]
+
+If your framework only needs a `json()` method on the context, this adapter is usually enough.

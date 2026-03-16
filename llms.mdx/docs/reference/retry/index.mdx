@@ -1,0 +1,57 @@
+# yieldless/retry
+
+
+
+`yieldless/retry` wraps tuple-returning operations with exponential backoff and abort-aware sleep.
+
+Exports [#exports]
+
+* `safeRetry(operation, options): Promise<SafeResult<T, E>>`
+
+Options [#options]
+
+| Option                        | Description                                           |
+| ----------------------------- | ----------------------------------------------------- |
+| `maxAttempts`                 | Total number of attempts including the first          |
+| `baseDelayMs`                 | Initial delay before the first retry                  |
+| `maxDelayMs`                  | Upper bound on the computed delay                     |
+| `factor`                      | Multiplier applied to the delay after each attempt    |
+| `jitter`                      | Jitter strategy applied to the delay                  |
+| `signal`                      | AbortSignal that stops the retry loop immediately     |
+| `shouldRetry(error, attempt)` | Predicate that decides whether to retry a given error |
+| `onRetry(state)`              | Callback invoked before each retry attempt            |
+
+Example [#example]
+
+```ts
+import { safeTry } from "yieldless/error";
+import { safeRetry } from "yieldless/retry";
+
+const [error, response] = await safeRetry(
+  async (_attempt, signal) => safeTry(fetchWithSignal(signal)),
+  {
+    maxAttempts: 5,
+    baseDelayMs: 100,
+    shouldRetry: (error) => error.name !== "ValidationError",
+  },
+);
+```
+
+Operational rules [#operational-rules]
+
+* Attempt counts start at 1
+* `maxAttempts` includes the first attempt
+* The retry loop stops immediately when the parent signal is aborted
+* Jitter defaults to `"full"` to avoid herd behavior
+
+Good retry targets [#good-retry-targets]
+
+* HTTP calls to other services
+* Transient database connection failures
+* Temporary subprocess startup issues
+
+Bad retry targets [#bad-retry-targets]
+
+* Validation failures
+* Permission errors
+* Business-rule violations that are deterministic

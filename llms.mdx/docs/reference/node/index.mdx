@@ -1,0 +1,56 @@
+# yieldless/node
+
+
+
+`yieldless/node` wraps the pieces of Node that backend tools and desktop apps touch constantly: filesystem calls and external commands.
+
+Exports [#exports]
+
+Filesystem [#filesystem]
+
+* `accessSafe(path)`
+* `readFileSafe(path, encoding?)`
+* `writeFileSafe(path, contents, options?)`
+* `readdirSafe(path)`
+* `mkdirSafe(path, options?)`
+* `rmSafe(path, options?)`
+* `statSafe(path)`
+
+Processes [#processes]
+
+* `runCommand(file, args?, options?)`
+* `runCommandSafe(file, args?, options?)`
+* `CommandError`
+
+Filesystem example [#filesystem-example]
+
+```ts
+import { readFileSafe } from "yieldless/node";
+
+const [error, contents] = await readFileSafe(".git/HEAD");
+```
+
+Child-process example [#child-process-example]
+
+```ts
+import { runCommandSafe } from "yieldless/node";
+
+const [error, result] = await runCommandSafe(
+  "git",
+  ["status", "--short"],
+  { cwd: repositoryPath },
+);
+```
+
+runCommand() vs runCommandSafe() [#runcommand-vs-runcommandsafe]
+
+* `runCommand()` throws on non-zero exit and returns `{ stdout, stderr, exitCode, signal }`
+* `runCommandSafe()` wraps that behavior into a tuple
+
+`CommandError` includes the command output, exit code, signal, and Node error code when one exists.
+
+Cancellation [#cancellation]
+
+<Callout>
+  If you pass an `AbortSignal`, Yieldless forwards it to Node's native child-process signal handling and waits for the subprocess to close before it settles the wrapper promise.
+</Callout>

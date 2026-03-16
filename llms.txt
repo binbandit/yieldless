@@ -1,0 +1,28 @@
+# Docs
+
+- [Yieldless](/docs): Native async/await primitives for tuple-based errors, structured concurrency, and Node/Electron workflows.
+- **Guides**
+
+- Guides: undefined
+  - [Quickstart](/docs/guides/quickstart): Get a Yieldless application flow working with tuple errors, cancellation, and one realistic boundary.
+  - [Design Rules](/docs/guides/design-rules): The principles behind Yieldless and the tradeoffs those principles deliberately make.
+  - [Do and Don't](/docs/guides/do-and-dont): Practical conventions that keep Yieldless code readable instead of ceremonial.
+- **Reference**
+
+- Reference: undefined
+  - [yieldless/error](/docs/reference/error): Tuple-based error handling primitives.
+  - [yieldless/task](/docs/reference/task): Structured concurrency with a shared AbortSignal and sibling cancellation.
+  - [yieldless/resource](/docs/reference/resource): Native async disposal with acquire and release functions.
+  - [yieldless/di](/docs/reference/di): Reader-lite dependency binding for plain functions.
+  - [yieldless/retry](/docs/reference/retry): Exponential backoff with jitter and abort-aware delays.
+  - [yieldless/context](/docs/reference/context): AsyncLocalStorage-based context and a small tracing helper for Node.js.
+  - [yieldless/all](/docs/reference/all): Tuple-aware parallel combinators that share cancellation.
+  - [yieldless/schema](/docs/reference/schema): Tuple adapters for safeParse(), parse(), safeParseAsync(), and parseAsync() style validators.
+  - [yieldless/router](/docs/reference/router): Tuple-returning route handlers with HTTP error mapping.
+  - [yieldless/ipc](/docs/reference/ipc): Typed Electron IPC helpers that preserve tuple results across the process boundary.
+  - [yieldless/node](/docs/reference/node): Tuple wrappers for Node filesystem work and child-process execution.
+- **Recipes**
+
+- Recipes: undefined
+  - [Resilient Service Flow](/docs/recipes/resilient-service-flow): A practical backend flow that combines tuples, retries, validation, routing, and cancellation.
+  - [Electron Git Client](/docs/recipes/electron-git-client): An end-to-end shape for a desktop Git app using IPC tuples, abortable subprocesses, and typed renderer calls.

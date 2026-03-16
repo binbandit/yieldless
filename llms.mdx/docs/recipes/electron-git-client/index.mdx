@@ -1,0 +1,83 @@
+# Electron Git Client
+
+
+
+Yieldless fits Electron well because the important boundaries in an Electron app are all failure-heavy: the renderer asks for work through IPC, the main process touches the filesystem, the main process launches long-running child processes like `git clone`.
+
+Main-process contract [#main-process-contract]
+
+```ts
+import type { IpcProcedure } from "yieldless/ipc";
+
+type GitContract = {
+  cloneRepository: IpcProcedure<
+    [url: string, directory: string],
+    { path: string },
+    Error
+  >;
+  getStatus: IpcProcedure<[directory: string], { output: string }, Error>;
+};
+```
+
+Main-process implementation [#main-process-implementation]
+
+```ts
+import { createIpcMain } from "yieldless/ipc";
+import { runTaskGroup } from "yieldless/task";
+import { runCommandSafe } from "yieldless/node";
+
+const ipc = createIpcMain<GitContract>(ipcMain);
+
+ipc.handle("cloneRepository", async (_event, url, directory) => {
+  return await runTaskGroup(async (_group, signal) => {
+    const [cloneError] = await runCommandSafe(
+      "git",
+      ["clone", url, directory],
+      { signal },
+    );
+
+    if (cloneError) {
+      return [cloneError, null];
+    }
+
+    return [null, { path: directory }];
+  });
+});
+```
+
+If the window is torn down or a parent task group is canceled, the subprocess is aborted through Node's native child-process signal handling.
+
+Preload bridge [#preload-bridge]
+
+```ts
+import { createIpcBridge, createIpcRenderer } from "yieldless/ipc";
+
+const client = createIpcRenderer<GitContract>(ipcRenderer);
+
+export const gitBridge = createIpcBridge(client, [
+  "cloneRepository",
+  "getStatus",
+] as const);
+```
+
+Renderer usage [#renderer-usage]
+
+```ts
+const [error, result] = await window.gitBridge.cloneRepository(
+  "git@github.com:binbandit/yieldless.git",
+  "/tmp/yieldless",
+);
+
+if (error) {
+  showToast(error.message);
+  return;
+}
+
+openRepository(result.path);
+```
+
+Why this boundary feels cleaner [#why-this-boundary-feels-cleaner]
+
+* The renderer never depends on Electron's lossy thrown-error conversion.
+* The main process can use the same tuple style it uses everywhere else.
+* Long-running Git subprocesses can be canceled as soon as the UI no longer cares about them.

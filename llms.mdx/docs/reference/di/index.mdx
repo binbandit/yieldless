@@ -1,0 +1,44 @@
+# yieldless/di
+
+
+
+`yieldless/di` is intentionally small. It binds stable dependencies at the application edge and returns the executable version of the function.
+
+Exports [#exports]
+
+* `type Injectable<Deps, Args extends unknown[], Return> = (deps: Deps, ...args: Args) => Return`
+* `inject(core, deps): (...args) => Return`
+
+Example [#example]
+
+```ts
+import { inject } from "yieldless/di";
+
+const createHandler = (
+  deps: {
+    logger: { info(message: string): void };
+    audit: { write(message: string): Promise<void> };
+  },
+  repoId: string,
+) => {
+  deps.logger.info(`Loading ${repoId}`);
+  return deps.audit.write(`repo:${repoId}`);
+};
+
+const handler = inject(createHandler, {
+  logger: console,
+  audit,
+});
+```
+
+Why this stays readable [#why-this-stays-readable]
+
+* All required dependencies are still visible in the function signature
+* There is no hidden container lookup
+* TypeScript enforces that the injected object satisfies `Deps` before the returned function can be called
+
+Use it for [#use-it-for]
+
+* Route handlers configured with repositories, loggers, and feature flags
+* CLI commands configured with a filesystem or process adapter
+* Background jobs configured with queues or telemetry sinks

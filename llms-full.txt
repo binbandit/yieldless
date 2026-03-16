@@ -1,0 +1,1014 @@
+# Yieldless
+
+
+
+Yieldless is a TypeScript library with zero dependencies. It gives you tuple-based errors, structured concurrency, and resource management — built on `Promise`, `AbortController`, `AsyncLocalStorage`, and `Symbol.asyncDispose`.
+
+Quick install [#quick-install]
+
+```bash
+pnpm add yieldless
+```
+
+What it looks like [#what-it-looks-like]
+
+```ts
+import { safeTry } from "yieldless/error";
+import { runTaskGroup } from "yieldless/task";
+
+const [repoError, repo] = await safeTry(loadRepository(repoId));
+
+if (repoError) {
+  return [repoError, null] as const;
+}
+
+return await runTaskGroup(async (group) => {
+  const refs = group.spawn((signal) => loadRefs(repo.path, signal));
+  const status = group.spawn((signal) => loadStatus(repo.path, signal));
+
+  return {
+    repo,
+    refs: await refs,
+    status: await status,
+  };
+});
+```
+
+<Cards>
+  <Card title="Quickstart" href="/docs/guides/quickstart" />
+
+  <Card title="Design Rules" href="/docs/guides/design-rules" />
+
+  <Card title="API Reference" href="/docs/reference/error" />
+
+  <Card title="Recipes" href="/docs/recipes/resilient-service-flow" />
+</Cards>
+
+
+# Design Rules
+
+
+
+Yieldless is small on purpose. The design rules are what keep it small.
+
+1\. Prefer native language features over framework runtimes [#1-prefer-native-language-features-over-framework-runtimes]
+
+If JavaScript or Node already has a solid primitive for the job, Yieldless uses it.
+
+* `Promise` and `async/await` for sequencing
+* `AbortController` and `AbortSignal` for cancellation
+* `AsyncLocalStorage` for async context in Node
+* `Symbol.asyncDispose` and `await using` for resource cleanup
+
+This rule keeps the library easy to explain to engineers who did not build the original system.
+
+2\. Keep failures visible [#2-keep-failures-visible]
+
+Thrown exceptions are still useful for process-level failures and framework boundaries, but routine operational failures should stay explicit.
+
+```ts
+const [error, value] = await safeTry(readConfig());
+
+if (error) {
+  return [error, null] as const;
+}
+```
+
+That shape is intentionally repetitive. It makes failure handling obvious during code review.
+
+3\. Cancellation is cooperative [#3-cancellation-is-cooperative]
+
+`runTaskGroup()`, `all()`, `race()`, and `safeRetry()` all respect `AbortSignal`, but they cannot cancel code that ignores the signal.
+
+```ts
+group.spawn((signal) => runCommand("git", ["fetch"], { signal }));
+```
+
+4\. Keep adapters thin [#4-keep-adapters-thin]
+
+The schema, router, IPC, and Node modules are adapters. They are not attempts to replace the libraries they sit beside.
+
+5\. Avoid global magic [#5-avoid-global-magic]
+
+Use `inject()` for stable dependencies. Use `createContext()` for request-scoped data.
+
+6\. Pick the smallest module that solves the problem [#6-pick-the-smallest-module-that-solves-the-problem]
+
+| Problem                               | Start with         |
+| ------------------------------------- | ------------------ |
+| You want cleaner async errors         | `yieldless/error`  |
+| You need sibling cancellation         | `yieldless/task`   |
+| You need abort-aware retries          | `yieldless/retry`  |
+| You want typed route handlers         | `yieldless/router` |
+| You are building an Electron boundary | `yieldless/ipc`    |
+
+7\. Re-throw only at the boundary that needs it [#7-re-throw-only-at-the-boundary-that-needs-it]
+
+`unwrap()` exists for places that genuinely expect thrown exceptions.
+
+```ts
+import { safeTry, unwrap } from "yieldless/error";
+
+await transaction(async () => {
+  const result = await safeTry(writeModel());
+  return unwrap(result);
+});
+```
+
+
+# Do and Don't
+
+
+
+This page is the short list of habits that keep tuple-based code clean under real production pressure.
+
+Error handling [#error-handling]
+
+✓ Keep the tuple close to the boundary. [#-keep-the-tuple-close-to-the-boundary]
+
+Wrap I/O once, then pass domain values through the rest of the function.
+
+✗ Wrap every line in safeTry(). [#-wrap-every-line-in-safetry]
+
+If a function is already synchronous and pure, let it stay ordinary code.
+
+```ts
+const [readError, configText] = await readFileSafe("config.json");
+if (readError) return [readError, null];
+
+const [parseError, config] = safeTrySync(() => JSON.parse(configText));
+if (parseError) return [parseError, null];
+```
+
+Cancellation [#cancellation]
+
+✓ Pass the signal all the way into the I/O API. [#-pass-the-signal-all-the-way-into-the-io-api]
+
+Cancellation only matters when the transport or subprocess actually sees the signal.
+
+✗ Assume a task group can kill arbitrary CPU work. [#-assume-a-task-group-can-kill-arbitrary-cpu-work]
+
+`AbortSignal` is cooperative. If your code ignores it, the work keeps running.
+
+Retries [#retries]
+
+✓ Retry transport failures and transient infrastructure noise. [#-retry-transport-failures-and-transient-infrastructure-noise]
+
+Network timeouts, brief lock contentions, and flaky subprocess startup are reasonable candidates.
+
+✗ Retry validation failures or deterministic domain errors. [#-retry-validation-failures-or-deterministic-domain-errors]
+
+If the request shape is bad on attempt one, it will still be bad on attempt three.
+
+Dependency injection [#dependency-injection]
+
+✓ Bind stable dependencies at the edge. [#-bind-stable-dependencies-at-the-edge]
+
+Loggers, repositories, mailers, and feature flags are good candidates for `inject()`.
+
+✗ Build a hidden service locator around it. [#-build-a-hidden-service-locator-around-it]
+
+If the dependencies are not obvious from the function signature, the code gets harder to review.
+
+Context [#context]
+
+✓ Use async context for request-scoped metadata. [#-use-async-context-for-request-scoped-metadata]
+
+Trace spans, request IDs, user sessions, or a transaction handle fit well.
+
+✗ Use async context as your application container. [#-use-async-context-as-your-application-container]
+
+Configuration and stable dependencies should still be explicit.
+
+Boundaries [#boundaries]
+
+<Callout>
+  A good rule of thumb: tuples are for work you expect to fail sometimes, thrown exceptions are for code that truly cannot continue. If a boundary requires exceptions, convert at that one spot with `unwrap()` and move on.
+</Callout>
+
+
+# Quickstart
+
+
+
+The fastest way to understand Yieldless is to wire three modules together:
+
+1. `yieldless/error` to keep failures in tuple form
+2. `yieldless/task` to fan work out and cancel siblings cleanly
+3. `yieldless/retry` to handle noisy infrastructure without leaking timers
+
+Install [#install]
+
+```bash
+pnpm add yieldless
+```
+
+TypeScript 5.5+ is the target baseline. The package is compiled with `isolatedDeclarations` enabled.
+
+Step 1: stop throwing for routine failures [#step-1-stop-throwing-for-routine-failures]
+
+`safeTry()` and `safeTrySync()` let you treat common failures as data instead of exception control flow.
+
+```ts
+import { safeTry } from "yieldless/error";
+
+const [repoError, repo] = await safeTry(loadRepository(repoId));
+
+if (repoError) {
+  return [repoError, null] as const;
+}
+```
+
+That pattern is the center of the library. Every module is designed to fit back into the same `[error, value]` shape.
+
+Step 2: group related work under one cancellation signal [#step-2-group-related-work-under-one-cancellation-signal]
+
+`runTaskGroup()` gives you a shared abort signal and sibling failure propagation.
+
+```ts
+import { runTaskGroup } from "yieldless/task";
+
+const summary = await runTaskGroup(async (group) => {
+  const refs = group.spawn((signal) => readRefs(repo.path, signal));
+  const status = group.spawn((signal) => readStatus(repo.path, signal));
+
+  return {
+    refs: await refs,
+    status: await status,
+  };
+});
+```
+
+If `readRefs()` throws, the group aborts the shared signal, waits for `readStatus()` to settle, and then rethrows the original failure.
+
+Step 3: add retries where the outside world is unreliable [#step-3-add-retries-where-the-outside-world-is-unreliable]
+
+Retries should stay close to transport boundaries: HTTP, queues, database connections, and subprocesses that can legitimately fail for transient reasons.
+
+```ts
+import { safeTry } from "yieldless/error";
+import { safeRetry } from "yieldless/retry";
+
+const [fetchError, payload] = await safeRetry(
+  async (_attempt, signal) => safeTry(fetchRepository(repoId, signal)),
+  {
+    maxAttempts: 4,
+    baseDelayMs: 150,
+  },
+);
+
+if (fetchError) {
+  return [fetchError, null] as const;
+}
+```
+
+The retry loop respects `AbortSignal`, so if a parent task group is canceled, the pending backoff timer is canceled too.
+
+Step 4: keep the edges boring [#step-4-keep-the-edges-boring]
+
+The package ships adapters for common backend boundaries:
+
+* `yieldless/schema` keeps validators in tuple form
+* `yieldless/router` turns tuple handlers into HTTP responses
+* `yieldless/ipc` preserves tuple results across Electron IPC
+* `yieldless/node` wraps filesystem and child-process work
+
+A full request flow [#a-full-request-flow]
+
+```ts
+import { safeRetry } from "yieldless/retry";
+import { parseSafe } from "yieldless/schema";
+import { NotFoundError, honoHandler } from "yieldless/router";
+
+const getUser = honoHandler(async (c) => {
+  const [inputError, input] = parseSafe(userParamsSchema, c.req.param());
+  if (inputError) {
+    return [inputError, null];
+  }
+
+  const [userError, user] = await safeRetry(
+    async (_attempt, signal) => safeTry(loadUser(input.id, signal)),
+    { maxAttempts: 3 },
+  );
+
+  if (userError) {
+    return [userError, null];
+  }
+
+  if (user === null) {
+    return [new NotFoundError("User not found"), null];
+  }
+
+  return [null, user];
+});
+```
+
+Where to go next [#where-to-go-next]
+
+* Read [Design Rules](/docs/guides/design-rules) before you spread the tuple style across a large codebase.
+* Read [Do and Don't](/docs/guides/do-and-dont) if you are moving a team onto the library and want the conventions to stay sharp.
+* Use the reference section when you already know what module you need.
+
+
+# Electron Git Client
+
+
+
+Yieldless fits Electron well because the important boundaries in an Electron app are all failure-heavy: the renderer asks for work through IPC, the main process touches the filesystem, the main process launches long-running child processes like `git clone`.
+
+Main-process contract [#main-process-contract]
+
+```ts
+import type { IpcProcedure } from "yieldless/ipc";
+
+type GitContract = {
+  cloneRepository: IpcProcedure<
+    [url: string, directory: string],
+    { path: string },
+    Error
+  >;
+  getStatus: IpcProcedure<[directory: string], { output: string }, Error>;
+};
+```
+
+Main-process implementation [#main-process-implementation]
+
+```ts
+import { createIpcMain } from "yieldless/ipc";
+import { runTaskGroup } from "yieldless/task";
+import { runCommandSafe } from "yieldless/node";
+
+const ipc = createIpcMain<GitContract>(ipcMain);
+
+ipc.handle("cloneRepository", async (_event, url, directory) => {
+  return await runTaskGroup(async (_group, signal) => {
+    const [cloneError] = await runCommandSafe(
+      "git",
+      ["clone", url, directory],
+      { signal },
+    );
+
+    if (cloneError) {
+      return [cloneError, null];
+    }
+
+    return [null, { path: directory }];
+  });
+});
+```
+
+If the window is torn down or a parent task group is canceled, the subprocess is aborted through Node's native child-process signal handling.
+
+Preload bridge [#preload-bridge]
+
+```ts
+import { createIpcBridge, createIpcRenderer } from "yieldless/ipc";
+
+const client = createIpcRenderer<GitContract>(ipcRenderer);
+
+export const gitBridge = createIpcBridge(client, [
+  "cloneRepository",
+  "getStatus",
+] as const);
+```
+
+Renderer usage [#renderer-usage]
+
+```ts
+const [error, result] = await window.gitBridge.cloneRepository(
+  "git@github.com:binbandit/yieldless.git",
+  "/tmp/yieldless",
+);
+
+if (error) {
+  showToast(error.message);
+  return;
+}
+
+openRepository(result.path);
+```
+
+Why this boundary feels cleaner [#why-this-boundary-feels-cleaner]
+
+* The renderer never depends on Electron's lossy thrown-error conversion.
+* The main process can use the same tuple style it uses everywhere else.
+* Long-running Git subprocesses can be canceled as soon as the UI no longer cares about them.
+
+
+# Resilient Service Flow
+
+
+
+This recipe shows the shape Yieldless is best at: an HTTP request that validates input, performs a few pieces of I/O, retries the flaky part, and returns a normal JSON response.
+
+The moving parts [#the-moving-parts]
+
+* `yieldless/schema` validates input without throwing
+* `yieldless/retry` handles transient I/O noise
+* `yieldless/task` keeps sibling work under one cancellation signal
+* `yieldless/router` turns tuple results into a plain response
+
+Route handler [#route-handler]
+
+```ts
+import { safeTry } from "yieldless/error";
+import { parseSafe } from "yieldless/schema";
+import { safeRetry } from "yieldless/retry";
+import { NotFoundError, honoHandler } from "yieldless/router";
+import { runTaskGroup } from "yieldless/task";
+
+export const getRepository = honoHandler(async (c) => {
+  const [paramsError, params] = parseSafe(repositoryParamsSchema, c.req.param());
+  if (paramsError) {
+    return [paramsError, null];
+  }
+
+  const [repoError, repo] = await safeRetry(
+    async (_attempt, signal) => safeTry(loadRepository(params.id, signal)),
+    { maxAttempts: 3, baseDelayMs: 100 },
+  );
+
+  if (repoError) {
+    return [repoError, null];
+  }
+
+  if (repo === null) {
+    return [new NotFoundError("Repository not found"), null];
+  }
+
+  const payload = await runTaskGroup(async (group) => {
+    const refs = group.spawn((signal) => loadRefs(repo.path, signal));
+    const status = group.spawn((signal) => loadStatus(repo.path, signal));
+
+    return {
+      id: repo.id,
+      refs: await refs,
+      status: await status,
+    };
+  });
+
+  return [null, payload];
+});
+```
+
+Why this holds up well in production [#why-this-holds-up-well-in-production]
+
+* Validation failures never take the exception path.
+* If `loadRefs()` fails, `loadStatus()` is aborted immediately.
+* Retry timers are cancellable because they run through `AbortSignal`.
+* The handler body stays linear. There is no framework-specific DSL to learn.
+
+Rules worth keeping [#rules-worth-keeping]
+
+<Callout>
+  * Validate early and return early.
+  * Retry only the noisy boundary, not the entire request.
+  * Spawn sibling work only when both tasks should die together.
+  * Map domain misses to explicit HTTP errors like `NotFoundError`.
+</Callout>
+
+
+# yieldless/all
+
+
+
+`yieldless/all` gives you two helpers for tuple-returning parallel work: `all(tasks)` waits for every task or aborts siblings on the first error. `race(tasks)` resolves with the first settled result and aborts the rest.
+
+Exports [#exports]
+
+* `type SafeTask<T, E = Error> = (signal: AbortSignal) => PromiseLike<SafeResult<T, E>> | SafeResult<T, E>`
+* `all(tasks, options): Promise<SafeResult<AllValues<Tasks>, ParallelError<Tasks>>>`
+* `race(tasks, options): Promise<SafeResult<Value, Error>>`
+
+Example [#example]
+
+```ts
+import { all } from "yieldless/all";
+import { safeTry } from "yieldless/error";
+
+const result = await all([
+  (signal) => safeTry(readPrimary(signal)),
+  (signal) => safeTry(readReplica(signal)),
+]);
+```
+
+Behavior notes [#behavior-notes]
+
+* `all([])` succeeds with an empty array.
+* `race([])` throws a `RangeError`.
+* If any task returns `[error, null]`, siblings are aborted before the final tuple is returned.
+* Thrown task failures are normalized into tuple failures internally.
+
+When to prefer runTaskGroup() instead [#when-to-prefer-runtaskgroup-instead]
+
+Use `all()` and `race()` when the tasks are already tuple-native. Use `runTaskGroup()` when you want imperative fan-out and regular promise values.
+
+
+# yieldless/context
+
+
+
+`yieldless/context` wraps Node's `AsyncLocalStorage` without turning it into a global application container.
+
+Exports [#exports]
+
+* `createContext<T>(): YieldlessContext<T>`
+* `createTraceContext<Span>(): YieldlessContext<Span>`
+* `withSpan(tracer, context, name, fn): Promise<Return>`
+
+YieldlessContext<T> [#yieldlesscontextt]
+
+| Method             | Description                                                |
+| ------------------ | ---------------------------------------------------------- |
+| `run(value, fn)`   | Execute a function with the given context value            |
+| `get()`            | Return the current value or undefined                      |
+| `expect(message?)` | Return the current value or throw with an optional message |
+| `bind(fn)`         | Capture the current context and bind it to a function      |
+
+Example [#example]
+
+```ts
+import { createContext, withSpan } from "yieldless/context";
+
+const requestContext = createContext<{ requestId: string }>();
+
+await requestContext.run({ requestId: crypto.randomUUID() }, async () => {
+  console.log(requestContext.expect().requestId);
+});
+```
+
+Tracing shape [#tracing-shape]
+
+`withSpan()` expects a tracer with `startActiveSpan()` and a span with `end()`. That matches the OpenTelemetry style API closely without taking a hard runtime dependency on it.
+
+Use it for [#use-it-for]
+
+* Request IDs
+* Trace spans
+* User session metadata
+* Transaction handles
+
+Do not use it for [#do-not-use-it-for]
+
+* Static application dependencies
+* Feature flags that are known at startup
+* Anything that would be clearer as a regular function argument
+
+
+# yieldless/di
+
+
+
+`yieldless/di` is intentionally small. It binds stable dependencies at the application edge and returns the executable version of the function.
+
+Exports [#exports]
+
+* `type Injectable<Deps, Args extends unknown[], Return> = (deps: Deps, ...args: Args) => Return`
+* `inject(core, deps): (...args) => Return`
+
+Example [#example]
+
+```ts
+import { inject } from "yieldless/di";
+
+const createHandler = (
+  deps: {
+    logger: { info(message: string): void };
+    audit: { write(message: string): Promise<void> };
+  },
+  repoId: string,
+) => {
+  deps.logger.info(`Loading ${repoId}`);
+  return deps.audit.write(`repo:${repoId}`);
+};
+
+const handler = inject(createHandler, {
+  logger: console,
+  audit,
+});
+```
+
+Why this stays readable [#why-this-stays-readable]
+
+* All required dependencies are still visible in the function signature
+* There is no hidden container lookup
+* TypeScript enforces that the injected object satisfies `Deps` before the returned function can be called
+
+Use it for [#use-it-for]
+
+* Route handlers configured with repositories, loggers, and feature flags
+* CLI commands configured with a filesystem or process adapter
+* Background jobs configured with queues or telemetry sinks
+
+
+# yieldless/error
+
+
+
+`yieldless/error` is the smallest useful piece of the library. It gives you a single tuple shape and a few helpers for converting thrown code into that shape.
+
+Exports [#exports]
+
+* `type SafeResult<T, E = Error> = [E, null] | [null, T]`
+* `safeTry(promise): Promise<SafeResult<T>>`
+* `safeTrySync(fn): SafeResult<T>`
+* `unwrap(result): T`
+
+Typical use [#typical-use]
+
+```ts
+import { safeTry, safeTrySync, unwrap } from "yieldless/error";
+
+const [readError, body] = await safeTry(readFile("package.json", "utf8"));
+if (readError) {
+  return [readError, null] as const;
+}
+
+const parsed = safeTrySync(() => JSON.parse(body));
+const value = unwrap(parsed);
+```
+
+When to use it [#when-to-use-it]
+
+* Wrapping filesystem, HTTP, database, or subprocess calls
+* Converting parse and validation failures into explicit branches
+* Leaving framework boundaries as tuples until the last possible moment
+
+Rules of thumb [#rules-of-thumb]
+
+* Prefer `safeTry()` at the boundary, not around every individual expression.
+* Keep the tuple local. Once you have the success value, use the value.
+* Use `unwrap()` only where a thrown exception is genuinely required.
+
+Caveat [#caveat]
+
+<Callout>
+  `SafeResult` uses null sentinels. If your success value is literally `null`, the runtime tuple is still correct, but the type system cannot fully discriminate that case.
+</Callout>
+
+
+# yieldless/ipc
+
+
+
+Electron IPC is a good place for Yieldless because the boundary is inherently failure-heavy and the transport only accepts structured-clone-safe data.
+
+Exports [#exports]
+
+* `createIpcMain(ipcMain)`
+* `createIpcRenderer(ipcRenderer)`
+* `createIpcBridge(client, channels)`
+* `serializeIpcError(error)`
+* `deserializeIpcResult(payload)`
+
+Core types [#core-types]
+
+* `IpcProcedure`
+* `IpcContract`
+* `IpcClient`
+* `IpcBridge`
+* `SerializedIpcError`
+
+Contract example [#contract-example]
+
+```ts
+import type { IpcProcedure } from "yieldless/ipc";
+
+type Contract = {
+  getStatus: IpcProcedure<[directory: string], { output: string }, Error>;
+};
+```
+
+Main process [#main-process]
+
+```ts
+const server = createIpcMain<Contract>(ipcMain);
+
+server.handle("getStatus", async (_event, directory) => {
+  return await runGitStatus(directory);
+});
+```
+
+Renderer process [#renderer-process]
+
+```ts
+const client = createIpcRenderer<Contract>(ipcRenderer);
+const [error, result] = await client.invoke("getStatus", "/tmp/repo");
+```
+
+Why the serialization layer matters [#why-the-serialization-layer-matters]
+
+<Callout>
+  Electron can flatten thrown errors when they cross IPC. Yieldless avoids that by serializing tuple errors into plain objects before they cross the boundary, then decoding them back into tuple form on the receiving side.
+</Callout>
+
+Good fits [#good-fits]
+
+* React or Vue renderers calling main-process Git operations
+* Preload bridges that expose only an allowlisted set of channels
+* Desktop apps where you want one consistent error model from UI to subprocess
+
+
+# yieldless/node
+
+
+
+`yieldless/node` wraps the pieces of Node that backend tools and desktop apps touch constantly: filesystem calls and external commands.
+
+Exports [#exports]
+
+Filesystem [#filesystem]
+
+* `accessSafe(path)`
+* `readFileSafe(path, encoding?)`
+* `writeFileSafe(path, contents, options?)`
+* `readdirSafe(path)`
+* `mkdirSafe(path, options?)`
+* `rmSafe(path, options?)`
+* `statSafe(path)`
+
+Processes [#processes]
+
+* `runCommand(file, args?, options?)`
+* `runCommandSafe(file, args?, options?)`
+* `CommandError`
+
+Filesystem example [#filesystem-example]
+
+```ts
+import { readFileSafe } from "yieldless/node";
+
+const [error, contents] = await readFileSafe(".git/HEAD");
+```
+
+Child-process example [#child-process-example]
+
+```ts
+import { runCommandSafe } from "yieldless/node";
+
+const [error, result] = await runCommandSafe(
+  "git",
+  ["status", "--short"],
+  { cwd: repositoryPath },
+);
+```
+
+runCommand() vs runCommandSafe() [#runcommand-vs-runcommandsafe]
+
+* `runCommand()` throws on non-zero exit and returns `{ stdout, stderr, exitCode, signal }`
+* `runCommandSafe()` wraps that behavior into a tuple
+
+`CommandError` includes the command output, exit code, signal, and Node error code when one exists.
+
+Cancellation [#cancellation]
+
+<Callout>
+  If you pass an `AbortSignal`, Yieldless forwards it to Node's native child-process signal handling and waits for the subprocess to close before it settles the wrapper promise.
+</Callout>
+
+
+# yieldless/resource
+
+
+
+`yieldless/resource` turns a pair of acquire/release functions into an object that participates in native `await using` cleanup.
+
+Exports [#exports]
+
+* `type ResourceAcquire<T> = () => PromiseLike<T> | T`
+* `type ResourceRelease<T> = (resource: T) => PromiseLike<void> | void`
+* `interface AsyncResource<T> extends AsyncDisposable { readonly value: T }`
+* `acquireResource(acquire, release): Promise<AsyncResource<T>>`
+
+Example [#example]
+
+```ts
+import { acquireResource } from "yieldless/resource";
+
+{
+  await using db = await acquireResource(connect, disconnect);
+  await db.value.query("select 1");
+}
+```
+
+Where it fits [#where-it-fits]
+
+* Database or queue connections scoped to a request or job
+* Temporary filesystem handles
+* External clients that need explicit teardown
+
+Important detail [#important-detail]
+
+<Callout>
+  The resource wrapper exposes the underlying value as `.value`. That keeps the disposable handle explicit and avoids pretending that current `await using` syntax can destructure directly into a tuple.
+</Callout>
+
+
+# yieldless/retry
+
+
+
+`yieldless/retry` wraps tuple-returning operations with exponential backoff and abort-aware sleep.
+
+Exports [#exports]
+
+* `safeRetry(operation, options): Promise<SafeResult<T, E>>`
+
+Options [#options]
+
+| Option                        | Description                                           |
+| ----------------------------- | ----------------------------------------------------- |
+| `maxAttempts`                 | Total number of attempts including the first          |
+| `baseDelayMs`                 | Initial delay before the first retry                  |
+| `maxDelayMs`                  | Upper bound on the computed delay                     |
+| `factor`                      | Multiplier applied to the delay after each attempt    |
+| `jitter`                      | Jitter strategy applied to the delay                  |
+| `signal`                      | AbortSignal that stops the retry loop immediately     |
+| `shouldRetry(error, attempt)` | Predicate that decides whether to retry a given error |
+| `onRetry(state)`              | Callback invoked before each retry attempt            |
+
+Example [#example]
+
+```ts
+import { safeTry } from "yieldless/error";
+import { safeRetry } from "yieldless/retry";
+
+const [error, response] = await safeRetry(
+  async (_attempt, signal) => safeTry(fetchWithSignal(signal)),
+  {
+    maxAttempts: 5,
+    baseDelayMs: 100,
+    shouldRetry: (error) => error.name !== "ValidationError",
+  },
+);
+```
+
+Operational rules [#operational-rules]
+
+* Attempt counts start at 1
+* `maxAttempts` includes the first attempt
+* The retry loop stops immediately when the parent signal is aborted
+* Jitter defaults to `"full"` to avoid herd behavior
+
+Good retry targets [#good-retry-targets]
+
+* HTTP calls to other services
+* Transient database connection failures
+* Temporary subprocess startup issues
+
+Bad retry targets [#bad-retry-targets]
+
+* Validation failures
+* Permission errors
+* Business-rule violations that are deterministic
+
+
+# yieldless/router
+
+
+
+`yieldless/router` turns tuple-native handlers into Hono-style JSON handlers.
+
+Exports [#exports]
+
+* `honoHandler(handler, options)`
+
+Error classes [#error-classes]
+
+* `HttpError`
+* `BadRequestError`
+* `UnauthorizedError`
+* `ForbiddenError`
+* `NotFoundError`
+* `ConflictError`
+* `ValidationError`
+
+Handler shape [#handler-shape]
+
+* `type TupleRouteHandler<Context, Data, ErrorType = Error> = (context: Context) => PromiseLike<SafeResult<Data, ErrorType>> | SafeResult<Data, ErrorType>`
+
+Example [#example]
+
+```ts
+import { honoHandler, NotFoundError } from "yieldless/router";
+
+export const getRepository = honoHandler(async (c) => {
+  const repo = await findRepository(c.req.param("id"));
+
+  if (repo === null) {
+    return [new NotFoundError("Repository not found"), null];
+  }
+
+  return [null, repo];
+});
+```
+
+What the adapter does [#what-the-adapter-does]
+
+| Input                | Output                                          |
+| -------------------- | ----------------------------------------------- |
+| Success tuple        | `context.json(data, status)`                    |
+| `HttpError` instance | Configured status code                          |
+| Unknown error        | Generic 500                                     |
+| `options.mapError()` | Normalize custom domain errors into `HttpError` |
+
+When this module is enough [#when-this-module-is-enough]
+
+If your framework only needs a `json()` method on the context, this adapter is usually enough.
+
+
+# yieldless/schema
+
+
+
+`yieldless/schema` keeps validation inside the same error model as the rest of the library.
+
+Exports [#exports]
+
+* `parseSafe(schema, input)`
+* `parseAsyncSafe(schema, input)`
+
+Supported schema shapes [#supported-schema-shapes]
+
+* Objects with `safeParse()`
+* Objects with `parse()`
+* Objects with `safeParseAsync()`
+* Objects with `parseAsync()`
+
+Example with a safeParse() schema [#example-with-a-safeparse-schema]
+
+```ts
+import { parseSafe } from "yieldless/schema";
+
+const [error, user] = parseSafe(userSchema, input);
+if (error) {
+  return [error, null] as const;
+}
+```
+
+Example with an async parser [#example-with-an-async-parser]
+
+```ts
+const [error, user] = await parseAsyncSafe(userSchema, input);
+```
+
+Why it exists [#why-it-exists]
+
+Most validation libraries are already good at describing schemas. Yieldless does not try to replace them.
+
+Good fits [#good-fits]
+
+* HTTP request validation
+* Environment parsing
+* Normalizing database payloads
+* Decoding IPC input
+
+
+# yieldless/task
+
+
+
+`yieldless/task` gives you a small structured-concurrency primitive for normal async functions.
+
+Exports [#exports]
+
+* `type TaskFactory<T> = (signal: AbortSignal) => PromiseLike<T> | T`
+* `interface TaskGroup { readonly signal: AbortSignal; spawn(task): Promise<T> }`
+* `runTaskGroup(operation): Promise<T>`
+
+What runTaskGroup() guarantees [#what-runtaskgroup-guarantees]
+
+* All spawned tasks share one AbortSignal
+* The first task failure aborts the group immediately
+* The group waits for every child task to settle before returning
+* The original failure is rethrown after cleanup
+
+Example [#example]
+
+```ts
+import { runTaskGroup } from "yieldless/task";
+
+const repository = await runTaskGroup(async (group) => {
+  const refs = group.spawn((signal) => loadRefs(signal));
+  const branches = group.spawn((signal) => loadBranches(signal));
+
+  return {
+    refs: await refs,
+    branches: await branches,
+  };
+});
+```
+
+What it does not guarantee [#what-it-does-not-guarantee]
+
+Task cancellation is cooperative. Your spawned function must check or forward the signal for cancellation to take effect.
+
+```ts
+group.spawn((signal) => runCommand("git", ["fetch"], { signal }));
+```
+
+Good fits [#good-fits]
+
+* Parallel repository reads that should rise and fall together
+* Request-scoped fan-out in HTTP handlers
+* Background jobs that launch multiple abortable I/O operations

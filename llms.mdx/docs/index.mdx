@@ -1,0 +1,45 @@
+# Yieldless
+
+
+
+Yieldless is a TypeScript library with zero dependencies. It gives you tuple-based errors, structured concurrency, and resource management — built on `Promise`, `AbortController`, `AsyncLocalStorage`, and `Symbol.asyncDispose`.
+
+Quick install [#quick-install]
+
+```bash
+pnpm add yieldless
+```
+
+What it looks like [#what-it-looks-like]
+
+```ts
+import { safeTry } from "yieldless/error";
+import { runTaskGroup } from "yieldless/task";
+
+const [repoError, repo] = await safeTry(loadRepository(repoId));
+
+if (repoError) {
+  return [repoError, null] as const;
+}
+
+return await runTaskGroup(async (group) => {
+  const refs = group.spawn((signal) => loadRefs(repo.path, signal));
+  const status = group.spawn((signal) => loadStatus(repo.path, signal));
+
+  return {
+    repo,
+    refs: await refs,
+    status: await status,
+  };
+});
+```
+
+<Cards>
+  <Card title="Quickstart" href="/docs/guides/quickstart" />
+
+  <Card title="Design Rules" href="/docs/guides/design-rules" />
+
+  <Card title="API Reference" href="/docs/reference/error" />
+
+  <Card title="Recipes" href="/docs/recipes/resilient-service-flow" />
+</Cards>

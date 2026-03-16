@@ -1,0 +1,60 @@
+# yieldless/ipc
+
+
+
+Electron IPC is a good place for Yieldless because the boundary is inherently failure-heavy and the transport only accepts structured-clone-safe data.
+
+Exports [#exports]
+
+* `createIpcMain(ipcMain)`
+* `createIpcRenderer(ipcRenderer)`
+* `createIpcBridge(client, channels)`
+* `serializeIpcError(error)`
+* `deserializeIpcResult(payload)`
+
+Core types [#core-types]
+
+* `IpcProcedure`
+* `IpcContract`
+* `IpcClient`
+* `IpcBridge`
+* `SerializedIpcError`
+
+Contract example [#contract-example]
+
+```ts
+import type { IpcProcedure } from "yieldless/ipc";
+
+type Contract = {
+  getStatus: IpcProcedure<[directory: string], { output: string }, Error>;
+};
+```
+
+Main process [#main-process]
+
+```ts
+const server = createIpcMain<Contract>(ipcMain);
+
+server.handle("getStatus", async (_event, directory) => {
+  return await runGitStatus(directory);
+});
+```
+
+Renderer process [#renderer-process]
+
+```ts
+const client = createIpcRenderer<Contract>(ipcRenderer);
+const [error, result] = await client.invoke("getStatus", "/tmp/repo");
+```
+
+Why the serialization layer matters [#why-the-serialization-layer-matters]
+
+<Callout>
+  Electron can flatten thrown errors when they cross IPC. Yieldless avoids that by serializing tuple errors into plain objects before they cross the boundary, then decoding them back into tuple form on the receiving side.
+</Callout>
+
+Good fits [#good-fits]
+
+* React or Vue renderers calling main-process Git operations
+* Preload bridges that expose only an allowlisted set of channels
+* Desktop apps where you want one consistent error model from UI to subprocess

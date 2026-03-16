@@ -1,0 +1,34 @@
+# yieldless/all
+
+
+
+`yieldless/all` gives you two helpers for tuple-returning parallel work: `all(tasks)` waits for every task or aborts siblings on the first error. `race(tasks)` resolves with the first settled result and aborts the rest.
+
+Exports [#exports]
+
+* `type SafeTask<T, E = Error> = (signal: AbortSignal) => PromiseLike<SafeResult<T, E>> | SafeResult<T, E>`
+* `all(tasks, options): Promise<SafeResult<AllValues<Tasks>, ParallelError<Tasks>>>`
+* `race(tasks, options): Promise<SafeResult<Value, Error>>`
+
+Example [#example]
+
+```ts
+import { all } from "yieldless/all";
+import { safeTry } from "yieldless/error";
+
+const result = await all([
+  (signal) => safeTry(readPrimary(signal)),
+  (signal) => safeTry(readReplica(signal)),
+]);
+```
+
+Behavior notes [#behavior-notes]
+
+* `all([])` succeeds with an empty array.
+* `race([])` throws a `RangeError`.
+* If any task returns `[error, null]`, siblings are aborted before the final tuple is returned.
+* Thrown task failures are normalized into tuple failures internally.
+
+When to prefer runTaskGroup() instead [#when-to-prefer-runtaskgroup-instead]
+
+Use `all()` and `race()` when the tasks are already tuple-native. Use `runTaskGroup()` when you want imperative fan-out and regular promise values.

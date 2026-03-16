@@ -1,0 +1,35 @@
+# yieldless/resource
+
+
+
+`yieldless/resource` turns a pair of acquire/release functions into an object that participates in native `await using` cleanup.
+
+Exports [#exports]
+
+* `type ResourceAcquire<T> = () => PromiseLike<T> | T`
+* `type ResourceRelease<T> = (resource: T) => PromiseLike<void> | void`
+* `interface AsyncResource<T> extends AsyncDisposable { readonly value: T }`
+* `acquireResource(acquire, release): Promise<AsyncResource<T>>`
+
+Example [#example]
+
+```ts
+import { acquireResource } from "yieldless/resource";
+
+{
+  await using db = await acquireResource(connect, disconnect);
+  await db.value.query("select 1");
+}
+```
+
+Where it fits [#where-it-fits]
+
+* Database or queue connections scoped to a request or job
+* Temporary filesystem handles
+* External clients that need explicit teardown
+
+Important detail [#important-detail]
+
+<Callout>
+  The resource wrapper exposes the underlying value as `.value`. That keeps the disposable handle explicit and avoids pretending that current `await using` syntax can destructure directly into a tuple.
+</Callout>
