@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { codeToHtml } from 'shiki';
 import {
   ArrowRight,
   Box,
@@ -85,7 +86,11 @@ const principles = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const highlightedCode = await codeToHtml(heroCode, {
+    lang: 'typescript',
+    theme: 'github-dark',
+  });
   return (
     <div className="relative">
       {/* ─── Hero ───────────────────────────────────── */}
@@ -153,9 +158,10 @@ export default function HomePage() {
                   typescript
                 </span>
               </div>
-              <pre className="overflow-x-auto p-5 font-mono text-[13px] leading-[1.8] text-[#d4d4d8]">
-                <code>{heroCode}</code>
-              </pre>
+              <div
+                className="overflow-x-auto p-5 font-mono text-[13px] leading-[1.8] [&_pre]:!m-0 [&_pre]:!border-0 [&_pre]:!bg-transparent [&_pre]:!p-0"
+                dangerouslySetInnerHTML={{ __html: highlightedCode }}
+              />
             </div>
           </div>
         </div>
