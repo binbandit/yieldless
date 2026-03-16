@@ -1,0 +1,49 @@
+---
+title: yieldless/task
+description: Structured concurrency with a shared AbortSignal and sibling cancellation.
+---
+
+`yieldless/task` gives you a small structured-concurrency primitive for normal async functions.
+
+## Exports
+
+- `type TaskFactory<T> = (signal: AbortSignal) => PromiseLike<T> | T`
+- `interface TaskGroup { readonly signal: AbortSignal; spawn(task): Promise<T> }`
+- `runTaskGroup(operation): Promise<T>`
+
+## What runTaskGroup() guarantees
+
+- All spawned tasks share one AbortSignal
+- The first task failure aborts the group immediately
+- The group waits for every child task to settle before returning
+- The original failure is rethrown after cleanup
+
+## Example
+
+```ts
+import { runTaskGroup } from "yieldless/task";
+
+const repository = await runTaskGroup(async (group) => {
+  const refs = group.spawn((signal) => loadRefs(signal));
+  const branches = group.spawn((signal) => loadBranches(signal));
+
+  return {
+    refs: await refs,
+    branches: await branches,
+  };
+});
+```
+
+## What it does not guarantee
+
+Task cancellation is cooperative. Your spawned function must check or forward the signal for cancellation to take effect.
+
+```ts
+group.spawn((signal) => runCommand("git", ["fetch"], { signal }));
+```
+
+## Good fits
+
+- Parallel repository reads that should rise and fall together
+- Request-scoped fan-out in HTTP handlers
+- Background jobs that launch multiple abortable I/O operations

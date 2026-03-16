@@ -1,0 +1,122 @@
+---
+title: Quickstart
+description: Get a Yieldless application flow working with tuple errors, cancellation, and one realistic boundary.
+---
+
+The fastest way to understand Yieldless is to wire three modules together:
+
+1. `yieldless/error` to keep failures in tuple form
+2. `yieldless/task` to fan work out and cancel siblings cleanly
+3. `yieldless/retry` to handle noisy infrastructure without leaking timers
+
+## Install
+
+```bash
+pnpm add yieldless
+```
+
+TypeScript 5.5+ is the target baseline. The package is compiled with `isolatedDeclarations` enabled.
+
+## Step 1: stop throwing for routine failures
+
+`safeTry()` and `safeTrySync()` let you treat common failures as data instead of exception control flow.
+
+```ts
+import { safeTry } from "yieldless/error";
+
+const [repoError, repo] = await safeTry(loadRepository(repoId));
+
+if (repoError) {
+  return [repoError, null] as const;
+}
+```
+
+That pattern is the center of the library. Every module is designed to fit back into the same `[error, value]` shape.
+
+## Step 2: group related work under one cancellation signal
+
+`runTaskGroup()` gives you a shared abort signal and sibling failure propagation.
+
+```ts
+import { runTaskGroup } from "yieldless/task";
+
+const summary = await runTaskGroup(async (group) => {
+  const refs = group.spawn((signal) => readRefs(repo.path, signal));
+  const status = group.spawn((signal) => readStatus(repo.path, signal));
+
+  return {
+    refs: await refs,
+    status: await status,
+  };
+});
+```
+
+If `readRefs()` throws, the group aborts the shared signal, waits for `readStatus()` to settle, and then rethrows the original failure.
+
+## Step 3: add retries where the outside world is unreliable
+
+Retries should stay close to transport boundaries: HTTP, queues, database connections, and subprocesses that can legitimately fail for transient reasons.
+
+```ts
+import { safeTry } from "yieldless/error";
+import { safeRetry } from "yieldless/retry";
+
+const [fetchError, payload] = await safeRetry(
+  async (_attempt, signal) => safeTry(fetchRepository(repoId, signal)),
+  {
+    maxAttempts: 4,
+    baseDelayMs: 150,
+  },
+);
+
+if (fetchError) {
+  return [fetchError, null] as const;
+}
+```
+
+The retry loop respects `AbortSignal`, so if a parent task group is canceled, the pending backoff timer is canceled too.
+
+## Step 4: keep the edges boring
+
+The package ships adapters for common backend boundaries:
+
+- `yieldless/schema` keeps validators in tuple form
+- `yieldless/router` turns tuple handlers into HTTP responses
+- `yieldless/ipc` preserves tuple results across Electron IPC
+- `yieldless/node` wraps filesystem and child-process work
+
+## A full request flow
+
+```ts
+import { safeRetry } from "yieldless/retry";
+import { parseSafe } from "yieldless/schema";
+import { NotFoundError, honoHandler } from "yieldless/router";
+
+const getUser = honoHandler(async (c) => {
+  const [inputError, input] = parseSafe(userParamsSchema, c.req.param());
+  if (inputError) {
+    return [inputError, null];
+  }
+
+  const [userError, user] = await safeRetry(
+    async (_attempt, signal) => safeTry(loadUser(input.id, signal)),
+    { maxAttempts: 3 },
+  );
+
+  if (userError) {
+    return [userError, null];
+  }
+
+  if (user === null) {
+    return [new NotFoundError("User not found"), null];
+  }
+
+  return [null, user];
+});
+```
+
+## Where to go next
+
+- Read [Design Rules](/docs/guides/design-rules) before you spread the tuple style across a large codebase.
+- Read [Do and Don't](/docs/guides/do-and-dont) if you are moving a team onto the library and want the conventions to stay sharp.
+- Use the reference section when you already know what module you need.

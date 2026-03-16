@@ -1,0 +1,70 @@
+---
+title: Design Rules
+description: The principles behind Yieldless and the tradeoffs those principles deliberately make.
+---
+
+Yieldless is small on purpose. The design rules are what keep it small.
+
+## 1. Prefer native language features over framework runtimes
+
+If JavaScript or Node already has a solid primitive for the job, Yieldless uses it.
+
+- `Promise` and `async/await` for sequencing
+- `AbortController` and `AbortSignal` for cancellation
+- `AsyncLocalStorage` for async context in Node
+- `Symbol.asyncDispose` and `await using` for resource cleanup
+
+This rule keeps the library easy to explain to engineers who did not build the original system.
+
+## 2. Keep failures visible
+
+Thrown exceptions are still useful for process-level failures and framework boundaries, but routine operational failures should stay explicit.
+
+```ts
+const [error, value] = await safeTry(readConfig());
+
+if (error) {
+  return [error, null] as const;
+}
+```
+
+That shape is intentionally repetitive. It makes failure handling obvious during code review.
+
+## 3. Cancellation is cooperative
+
+`runTaskGroup()`, `all()`, `race()`, and `safeRetry()` all respect `AbortSignal`, but they cannot cancel code that ignores the signal.
+
+```ts
+group.spawn((signal) => runCommand("git", ["fetch"], { signal }));
+```
+
+## 4. Keep adapters thin
+
+The schema, router, IPC, and Node modules are adapters. They are not attempts to replace the libraries they sit beside.
+
+## 5. Avoid global magic
+
+Use `inject()` for stable dependencies. Use `createContext()` for request-scoped data.
+
+## 6. Pick the smallest module that solves the problem
+
+| Problem | Start with |
+|---------|-----------|
+| You want cleaner async errors | `yieldless/error` |
+| You need sibling cancellation | `yieldless/task` |
+| You need abort-aware retries | `yieldless/retry` |
+| You want typed route handlers | `yieldless/router` |
+| You are building an Electron boundary | `yieldless/ipc` |
+
+## 7. Re-throw only at the boundary that needs it
+
+`unwrap()` exists for places that genuinely expect thrown exceptions.
+
+```ts
+import { safeTry, unwrap } from "yieldless/error";
+
+await transaction(async () => {
+  const result = await safeTry(writeModel());
+  return unwrap(result);
+});
+```

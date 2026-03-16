@@ -1,0 +1,35 @@
+---
+title: yieldless/all
+description: Tuple-aware parallel combinators that share cancellation.
+---
+
+`yieldless/all` gives you two helpers for tuple-returning parallel work: `all(tasks)` waits for every task or aborts siblings on the first error. `race(tasks)` resolves with the first settled result and aborts the rest.
+
+## Exports
+
+- `type SafeTask<T, E = Error> = (signal: AbortSignal) => PromiseLike<SafeResult<T, E>> | SafeResult<T, E>`
+- `all(tasks, options): Promise<SafeResult<AllValues<Tasks>, ParallelError<Tasks>>>`
+- `race(tasks, options): Promise<SafeResult<Value, Error>>`
+
+## Example
+
+```ts
+import { all } from "yieldless/all";
+import { safeTry } from "yieldless/error";
+
+const result = await all([
+  (signal) => safeTry(readPrimary(signal)),
+  (signal) => safeTry(readReplica(signal)),
+]);
+```
+
+## Behavior notes
+
+- `all([])` succeeds with an empty array.
+- `race([])` throws a `RangeError`.
+- If any task returns `[error, null]`, siblings are aborted before the final tuple is returned.
+- Thrown task failures are normalized into tuple failures internally.
+
+## When to prefer runTaskGroup() instead
+
+Use `all()` and `race()` when the tasks are already tuple-native. Use `runTaskGroup()` when you want imperative fan-out and regular promise values.

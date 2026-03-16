@@ -1,0 +1,12 @@
+{
+  "title": "Docs",
+  "pages": [
+    "index",
+    "---Guides---",
+    "guides",
+    "---Reference---",
+    "reference",
+    "---Recipes---",
+    "recipes"
+  ]
+}

@@ -1,0 +1,45 @@
+---
+title: yieldless/error
+description: Tuple-based error handling primitives.
+---
+
+`yieldless/error` is the smallest useful piece of the library. It gives you a single tuple shape and a few helpers for converting thrown code into that shape.
+
+## Exports
+
+- `type SafeResult<T, E = Error> = [E, null] | [null, T]`
+- `safeTry(promise): Promise<SafeResult<T>>`
+- `safeTrySync(fn): SafeResult<T>`
+- `unwrap(result): T`
+
+## Typical use
+
+```ts
+import { safeTry, safeTrySync, unwrap } from "yieldless/error";
+
+const [readError, body] = await safeTry(readFile("package.json", "utf8"));
+if (readError) {
+  return [readError, null] as const;
+}
+
+const parsed = safeTrySync(() => JSON.parse(body));
+const value = unwrap(parsed);
+```
+
+## When to use it
+
+- Wrapping filesystem, HTTP, database, or subprocess calls
+- Converting parse and validation failures into explicit branches
+- Leaving framework boundaries as tuples until the last possible moment
+
+## Rules of thumb
+
+- Prefer `safeTry()` at the boundary, not around every individual expression.
+- Keep the tuple local. Once you have the success value, use the value.
+- Use `unwrap()` only where a thrown exception is genuinely required.
+
+## Caveat
+
+<Callout>
+`SafeResult` uses null sentinels. If your success value is literally `null`, the runtime tuple is still correct, but the type system cannot fully discriminate that case.
+</Callout>
