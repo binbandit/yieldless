@@ -233,6 +233,28 @@ That keeps the implementation small and makes the failure modes easier to reason
 - `runTaskGroup` can only cancel work that actually respects the passed `AbortSignal`.
 - `await using` requires runtime support for explicit resource management.
 
+## Agent Skill
+
+This repo ships an [Agent Skill](https://agentskills.io) so AI coding agents understand yieldless conventions out of the box. Install it with the [`skills`](https://npmjs.com/package/skills) CLI:
+
+```bash
+npx skills add binbandit/yieldless
+```
+
+The installer auto-detects which agents you have (Claude Code, Cursor, Codex, etc.) and links the skill into each one. You can also target a specific agent:
+
+```bash
+npx skills add binbandit/yieldless -a claude-code
+```
+
+Or install globally so it is available across all your projects:
+
+```bash
+npx skills add binbandit/yieldless -g
+```
+
+Once installed, your agent will know the tuple conventions, subpath imports, `AbortSignal` patterns, and every module in the library.
+
 ## Development
 
 ```bash
