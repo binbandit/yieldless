@@ -12,6 +12,7 @@ The suite is organized by concern rather than by fixture-heavy integration scaff
 | `result.test.ts` | Tuple combinators for mapping, chaining, tapping, nullable conversion, and promise boundaries. |
 | `env.test.ts` | Required/optional environment readers, key picking, and sync/async schema-backed environment parsing. |
 | `concurrency.test.ts` | `all()`, `mapLimit()`, `race()`, and `runTaskGroup()` cancellation semantics. |
+| `iterable.test.ts` | Sync/async iterable collection, sequential tuple workers, bounded mapping, first-error abort, and validation. |
 | `retry.test.ts` | Retry termination, delay callbacks, and abort-aware backoff. |
 | `signal.test.ts` | Timeout deadlines, inherited cancellation, and signal cleanup. |
 | `timer.test.ts` | Abort-aware sleep, tuple sleep, polling stop conditions, timeout behavior, and option validation. |

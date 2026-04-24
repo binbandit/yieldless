@@ -90,6 +90,10 @@
       "types": "./dist/ipc.d.ts",
       "import": "./dist/ipc.js"
     },
+    "./iterable": {
+      "types": "./dist/iterable.d.ts",
+      "import": "./dist/iterable.js"
+    },
     "./node": {
       "types": "./dist/node.d.ts",
       "import": "./dist/node.js"

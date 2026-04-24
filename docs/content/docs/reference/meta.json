@@ -1,4 +1,4 @@
 {
   "title": "Reference",
-  "pages": ["error", "result", "task", "resource", "di", "env", "retry", "signal", "timer", "event", "fetch", "context", "all", "singleflight", "schema", "router", "ipc", "node"]
+  "pages": ["error", "result", "task", "resource", "di", "env", "retry", "signal", "timer", "event", "fetch", "context", "all", "iterable", "singleflight", "schema", "router", "ipc", "node"]
 }

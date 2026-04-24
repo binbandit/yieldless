@@ -84,6 +84,15 @@ export {
 } from "yieldless/ipc";
 
 export type {
+  AnyIterable,
+  IterableMapper,
+  IterableOptions,
+  IterableWorker,
+  MapAsyncLimitOptions,
+} from "yieldless/iterable";
+export { collect, forEach, mapAsyncLimit } from "yieldless/iterable";
+
+export type {
   CommandOptions,
   CommandResult,
   FilePath,

@@ -24,6 +24,7 @@ The next layer adds practical backend pieces on top of those primitives:
 - abort-aware one-shot event waits
 - async context storage for request-scoped data and spans
 - tuple-native parallel and bounded-work combinators
+- sync and async iterable workflows
 - in-flight request deduplication
 - schema adapters that stay in tuple-land
 - route handlers that turn tuple errors into HTTP responses
@@ -288,6 +289,25 @@ const [error, thumbnails] = await mapLimit(
 
 If one task returns `[error, null]`, the shared signal is aborted before the utility returns.
 `mapLimit()` preserves input order while keeping only the configured number of items in flight, which is useful for API calls, file processing, and subprocess work that should not stampede a machine or service.
+
+### `yieldless/iterable`
+
+`collect`, `forEach`, and `mapAsyncLimit` bring the same tuple/cancellation style to sync and async iterables.
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [error, thumbnails] = await mapAsyncLimit(
+  readImages(source),
+  (image, _index, signal) => renderThumbnail(image, signal),
+  {
+    concurrency: 4,
+    signal,
+  },
+);
+```
+
+Iterator failures and mapper failures are captured as tuple errors, and bounded mapping preserves input order.
 
 ### `yieldless/singleflight`
 

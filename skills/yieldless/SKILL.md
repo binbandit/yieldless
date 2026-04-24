@@ -221,6 +221,22 @@ const [error, thumbnails] = await mapLimit(
 
 Use `mapLimit` when processing a list of files, API calls, or subprocess jobs where unbounded parallelism would make the user's machine or service worse.
 
+### yieldless/iterable
+
+Tuple helpers for sync and async iterable workflows.
+
+```ts
+import { collect, forEach, mapAsyncLimit } from "yieldless/iterable";
+
+const [error, values] = await mapAsyncLimit(
+  readItems(),
+  (item, _index, signal) => processItem(item, signal),
+  { concurrency: 4, signal },
+);
+```
+
+Use `collect` to materialize an iterable, `forEach` for sequential tuple work, and `mapAsyncLimit` for bounded parallel mapping with stable output order.
+
 ### yieldless/singleflight
 
 Deduplicate concurrent tuple work by key. Use this when several callers may ask for the same expensive operation at once.
