@@ -34,3 +34,33 @@ import { acquireResource } from "yieldless/resource";
 <Callout>
 The resource wrapper exposes the underlying value as `.value`. That keeps the disposable handle explicit and avoids pretending that current `await using` syntax can destructure directly into a tuple.
 </Callout>
+
+## Good
+
+Use `acquireResource()` when cleanup must happen even if the body throws.
+
+```ts
+{
+  await using temp = await acquireResource(
+    () => createTempDirectory(),
+    (directory) => rmSafe(directory, { recursive: true, force: true }),
+  );
+
+  await writeBuildArtifacts(temp.value);
+}
+```
+
+Keep the resource lifetime as small as the work that needs it.
+
+## Avoid
+
+Do not acquire a resource and hope every return path remembers cleanup.
+
+```ts
+const client = await connect();
+const result = await runJob(client);
+await disconnect(client);
+return result;
+```
+
+Use `await using` when the TypeScript target and runtime support it. Otherwise keep `try` / `finally` explicit.

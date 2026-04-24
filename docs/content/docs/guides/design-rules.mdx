@@ -51,10 +51,17 @@ Use `inject()` for stable dependencies. Use `createContext()` for request-scoped
 | Problem | Start with |
 |---------|-----------|
 | You want cleaner async errors | `yieldless/error` |
+| You want to transform tuple values | `yieldless/result` |
 | You need sibling cancellation | `yieldless/task` |
+| You need bounded batch work | `yieldless/all` or `yieldless/iterable` |
 | You need abort-aware retries | `yieldless/retry` |
+| You need a firm deadline | `yieldless/signal` |
+| You need polling or sleep | `yieldless/timer` |
+| You need HTTP JSON with deadlines | `yieldless/fetch` |
+| You need startup config | `yieldless/env` |
 | You want typed route handlers | `yieldless/router` |
 | You are building an Electron boundary | `yieldless/ipc` |
+| You need in-flight deduplication | `yieldless/singleflight` |
 
 ## 7. Re-throw only at the boundary that needs it
 
@@ -68,3 +75,25 @@ await transaction(async () => {
   return unwrap(result);
 });
 ```
+
+## 8. Prefer adapters over replacements
+
+Yieldless should sit beside the tools teams already like.
+
+- Use your schema library, adapt it with `yieldless/schema`.
+- Use platform `fetch`, wrap it with `yieldless/fetch`.
+- Use Hono-style handlers, adapt tuple results with `yieldless/router`.
+- Use Electron IPC, preserve tuple results with `yieldless/ipc`.
+
+## 9. Keep pressure explicit
+
+When work can fan out, make the pressure control visible in code.
+
+```ts
+await mapLimit(repositories, refreshRepository, {
+  concurrency: 4,
+  signal,
+});
+```
+
+That one option is often the difference between a helpful tool and a machine that feels frozen.

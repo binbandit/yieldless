@@ -52,3 +52,40 @@ group.spawn((signal) => runCommand("git", ["fetch"], { signal }));
 - Parallel repository reads that should rise and fall together
 - Request-scoped fan-out in HTTP handlers
 - Background jobs that launch multiple abortable I/O operations
+
+## Good
+
+Use the group for work with one lifecycle.
+
+```ts
+const summary = await runTaskGroup(async (group) => {
+  const status = group.spawn((signal) => readStatus(repoPath, signal));
+  const branches = group.spawn((signal) => readBranches(repoPath, signal));
+
+  return {
+    status: await status,
+    branches: await branches,
+  };
+}, {
+  signal: request.signal,
+});
+```
+
+Let failures throw inside `runTaskGroup()` when the body is promise-native. If you need tuple-native fan-out, use `yieldless/all`.
+
+## Avoid
+
+Do not spawn children after the group body has returned.
+
+```ts
+let groupRef: TaskGroup | undefined;
+
+await runTaskGroup((group) => {
+  groupRef = group;
+  return "done";
+});
+
+groupRef?.spawn(loadLater);
+```
+
+Do not swallow child failures unless you intentionally convert them to successful values. The group uses thrown failures to abort siblings.

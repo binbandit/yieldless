@@ -59,3 +59,52 @@ return tapErr(
 ## When to use it
 
 Use these helpers when a tuple flow is becoming noisy but still belongs in ordinary TypeScript. If the code is clearer with one `if (error) return [error, null]`, keep the branch.
+
+## Good
+
+Use `fromNullable()` to turn a common domain miss into an explicit tuple.
+
+```ts
+const userResult = fromNullable(
+  await repository.findUser(id),
+  () => new NotFoundError("User not found"),
+);
+```
+
+Use `andThen()` when the second step depends on the first success value.
+
+```ts
+const result = andThen(userResult, (user) =>
+  user.active ? ok(user) : err(new ForbiddenError("User is inactive")),
+);
+```
+
+Use `tapErr()` for logging or telemetry that should not change the result.
+
+```ts
+return tapErr(result, (error) => {
+  logger.warn({ error }, "load user failed");
+});
+```
+
+## Avoid
+
+Do not turn a simple branch into a clever pipeline.
+
+```ts
+const result = andThen(
+  andThen(await loadUser(id), validateUser),
+  renderUser,
+);
+```
+
+If the explicit branch is clearer, keep it.
+
+```ts
+const [error, user] = await loadUser(id);
+if (error) return [error, null] as const;
+
+return renderUser(user);
+```
+
+Do not use `toPromise()` in the middle of tuple-native application code. It is for framework boundaries that require rejection.

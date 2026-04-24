@@ -8,6 +8,7 @@ This recipe shows the shape Yieldless is best at: an HTTP request that validates
 ## The moving parts
 
 - `yieldless/schema` validates input without throwing
+- `yieldless/fetch` keeps HTTP calls in tuple form
 - `yieldless/retry` handles transient I/O noise
 - `yieldless/task` keeps sibling work under one cancellation signal
 - `yieldless/router` turns tuple results into a plain response
@@ -61,6 +62,43 @@ export const getRepository = honoHandler(async (c) => {
 - If `loadRefs()` fails, `loadStatus()` is aborted immediately.
 - Retry timers are cancellable because they run through `AbortSignal`.
 - The handler body stays linear. There is no framework-specific DSL to learn.
+
+## Good variation: add a remote dependency
+
+```ts
+import { fetchJsonSafe, HttpStatusError } from "yieldless/fetch";
+
+const [metadataError, metadata] = await safeRetry(
+  (_attempt, signal) =>
+    fetchJsonSafe<RepositoryMetadata>(metadataUrl(repo.id), {
+      timeoutMs: 3_000,
+      signal,
+    }),
+  {
+    maxAttempts: 3,
+    shouldRetry: (error) =>
+      !(error instanceof HttpStatusError) || error.status >= 500,
+  },
+);
+
+if (metadataError) {
+  return [metadataError, null];
+}
+```
+
+The retry policy is attached to the flaky network call, not to the whole request.
+
+## Avoid: retrying the whole handler
+
+```ts
+export const getRepository = honoHandler((c) =>
+  safeRetry(() => loadWholeRepositoryResponse(c), {
+    maxAttempts: 3,
+  }),
+);
+```
+
+That repeats validation, routing decisions, and any side effects. Retry the noisy boundary instead.
 
 ## Rules worth keeping
 

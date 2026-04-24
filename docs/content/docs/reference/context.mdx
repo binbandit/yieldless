@@ -48,3 +48,38 @@ await requestContext.run({ requestId: crypto.randomUUID() }, async () => {
 - Static application dependencies
 - Feature flags that are known at startup
 - Anything that would be clearer as a regular function argument
+
+## Good
+
+Use context for metadata that naturally follows asynchronous work.
+
+```ts
+const requestContext = createContext<{ requestId: string }>();
+
+await requestContext.run({ requestId }, async () => {
+  logger.info(requestContext.expect().requestId);
+  await handleRequest();
+});
+```
+
+Use `bind()` when a callback will run later but should keep the current store.
+
+```ts
+const onComplete = requestContext.bind(() => {
+  logger.info(requestContext.expect().requestId);
+});
+```
+
+## Avoid
+
+Do not use async context as a dependency container.
+
+```ts
+const appContext = createContext<{ database: Database; logger: Logger }>();
+
+export async function loadUser(id: string) {
+  return await appContext.expect().database.findUser(id);
+}
+```
+
+Stable dependencies are clearer as function parameters or `yieldless/di` inputs.

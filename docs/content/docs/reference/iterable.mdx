@@ -58,3 +58,40 @@ const [error, thumbnails] = await mapAsyncLimit(
 - The first tuple error aborts in-flight bounded mapping work.
 - `forEach()` is sequential by design; use `mapAsyncLimit()` for parallelism.
 - `concurrency` must be a positive integer.
+
+## Good
+
+Use `forEach()` when order and backpressure matter more than throughput.
+
+```ts
+const [error] = await forEach(
+  readLogLines(filePath),
+  async (line, index, signal) => writeLine(index, line, signal),
+  { signal },
+);
+```
+
+Use `mapAsyncLimit()` for many independent operations.
+
+```ts
+const [error, results] = await mapAsyncLimit(
+  readRepositories(workspace),
+  (repo, _index, signal) => inspectRepository(repo, signal),
+  { concurrency: 4, signal },
+);
+```
+
+## Avoid
+
+Do not materialize a huge async iterable just so you can use array helpers.
+
+```ts
+const rows = [];
+for await (const row of readRows(file)) {
+  rows.push(row);
+}
+
+await Promise.all(rows.map(processRow));
+```
+
+Use `forEach()` or `mapAsyncLimit()` so the iterable can stream and cancellation can stop the work early.

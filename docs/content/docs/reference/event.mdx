@@ -44,3 +44,36 @@ const value = await onceEvent(emitter, "error", {
 - EventEmitter payloads resolve to the single argument when one argument is emitted, or the full argument array when multiple values are emitted.
 - EventTarget event names must be strings.
 - `onceEventSafe()` wraps success and failure in the normal Yieldless tuple shape.
+
+## Good
+
+Use `onceEventSafe()` when the event wait is one step in a tuple flow.
+
+```ts
+const [error, event] = await onceEventSafe<Event>(socket, "open", {
+  signal,
+});
+
+if (error) return [error, null] as const;
+```
+
+Use `rejectOn` to make domain-specific failure events reject the wait.
+
+```ts
+await onceEvent(stream, "ready", {
+  rejectOn: "close",
+  signal,
+});
+```
+
+## Avoid
+
+Do not create one-off promises without listener cleanup.
+
+```ts
+await new Promise((resolve) => {
+  emitter.once("ready", resolve);
+});
+```
+
+That pattern usually forgets abort handling and error-event cleanup.

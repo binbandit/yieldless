@@ -15,7 +15,7 @@ The repo exists to make a specific backend coding style cheap to adopt:
 - `package.json`: package metadata, subpath exports, build/test scripts, and publishing surface.
 - `src/index.ts`: barrel export for the full package entry while preserving granular subpath modules.
 - `README.md`: high-level positioning, module tour, and design tradeoffs.
-- `docs/`: docs site content and app shell for the public documentation.
+- `docs/`: docs site content, recipes, good/avoid guidance, and app shell for the public documentation.
 - `skills/yieldless/SKILL.md`: agent-facing explanation of Yieldless conventions.
 
 ## Directory Map

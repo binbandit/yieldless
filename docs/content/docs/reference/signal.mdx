@@ -69,3 +69,40 @@ try {
 - HTTP requests that should not hang forever
 - Git commands or subprocesses with a firm deadline
 - Any abort-aware operation where you want one shared time budget
+
+## Good
+
+Use `withTimeout()` for one operation.
+
+```ts
+const [error, response] = await safeTry(
+  withTimeout(
+    (signal) => fetch(url, { signal }),
+    { timeoutMs: 5_000, signal: request.signal },
+  ),
+);
+```
+
+Use `createTimeoutSignal()` for a scope of related operations.
+
+```ts
+const deadline = createTimeoutSignal(10_000, { signal });
+
+try {
+  await readProfile(deadline.signal);
+  await readPermissions(deadline.signal);
+} finally {
+  deadline[Symbol.dispose]();
+}
+```
+
+## Avoid
+
+Do not create ad hoc timers that outlive the request.
+
+```ts
+const timer = setTimeout(() => controller.abort(), 5_000);
+await doWork(controller.signal);
+```
+
+Use `withTimeout()` or dispose the derived signal explicitly so timers and parent listeners are cleaned up.

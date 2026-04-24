@@ -56,3 +56,53 @@ const [error, response] = await safeRetry(
 - Validation failures
 - Permission errors
 - Business-rule violations that are deterministic
+
+## Good
+
+Retry only the noisy boundary and keep validation outside the loop.
+
+```ts
+const [inputError, input] = parseSafe(schema, rawInput);
+if (inputError) return [inputError, null] as const;
+
+const [error, response] = await safeRetry(
+  (_attempt, signal) => fetchJsonSafe(urlFor(input), { signal }),
+  {
+    maxAttempts: 4,
+    baseDelayMs: 100,
+    signal,
+    shouldRetry: (error) =>
+      !(error instanceof HttpStatusError) || error.status >= 500,
+  },
+);
+```
+
+Use `onRetry()` for logging, metrics, or tests.
+
+```ts
+await safeRetry(operation, {
+  onRetry: ({ attempt, delayMs, error }) => {
+    logger.warn({ attempt, delayMs, error }, "retrying request");
+  },
+});
+```
+
+## Avoid
+
+Do not retry an entire request handler when only one transport call is flaky.
+
+```ts
+await safeRetry(
+  () => handleWholeRequest(context),
+  { maxAttempts: 3 },
+);
+```
+
+Do not retry deterministic failures.
+
+```ts
+await safeRetry(
+  () => parseUserInput(input),
+  { maxAttempts: 5 },
+);
+```

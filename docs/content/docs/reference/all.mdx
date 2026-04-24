@@ -52,3 +52,46 @@ const [error, avatars] = await mapLimit(
 ## When to prefer runTaskGroup() instead
 
 Use `all()`, `race()`, and `mapLimit()` when the work is already tuple-native. Use `runTaskGroup()` when you want imperative fan-out and regular promise values.
+
+## Good
+
+Use `all()` for a small, fixed set of independent tuple tasks.
+
+```ts
+const [error, [profile, permissions]] = await all([
+  (signal) => loadProfile(userId, signal),
+  (signal) => loadPermissions(userId, signal),
+]);
+```
+
+Use `mapLimit()` when a list could be large or expensive.
+
+```ts
+const [error, summaries] = await mapLimit(
+  repositories,
+  (repo, _index, signal) => readSummary(repo.path, signal),
+  { concurrency: 4, signal },
+);
+```
+
+Use `race()` when the first success or first failure should settle the operation.
+
+```ts
+const result = await race([
+  (signal) => readPrimary(signal),
+  (signal) => readReplica(signal),
+]);
+```
+
+## Avoid
+
+Do not pass work that ignores the signal and expect cancellation to be immediate.
+
+```ts
+await all([
+  async () => safeTry(expensiveCpuLoop()),
+  async () => safeTry(readRemoteData()),
+]);
+```
+
+Do not use `all()` for thousands of items. Use `mapLimit()` or `yieldless/iterable` so you can control pressure.

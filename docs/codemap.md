@@ -8,13 +8,13 @@ The docs combine content-heavy MDX reference pages with a small Next.js app shel
 
 | Area | Responsibility |
 |------|----------------|
-| `content/docs/` | Guides, recipes, and per-module reference pages. |
+| `content/docs/` | Guides, recipes, and per-module reference pages with examples, behavior notes, and good/avoid usage guidance. |
 | `src/app/` | App routes, layouts, search endpoint, and OG image generation. |
 | `src/components/` | MDX rendering, search UI, and provider wiring. |
 | `src/lib/` | Shared source loading and layout helpers. |
 
 ## Data And Control Flow
-1. MDX content under `content/docs/` defines the conceptual material and API reference.
+1. MDX content under `content/docs/` defines conceptual material, API reference, recipes, good examples, and avoid examples.
 2. `src/lib/source.ts` and related helpers load that content into the docs app.
 3. App routes render the docs, home page, search endpoint, and LLM-oriented text exports.
 

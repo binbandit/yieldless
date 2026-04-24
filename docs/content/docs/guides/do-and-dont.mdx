@@ -23,6 +23,23 @@ const [parseError, config] = safeTrySync(() => JSON.parse(configText));
 if (parseError) return [parseError, null];
 ```
 
+### ✓ Use result helpers when they remove branch noise.
+
+```ts
+return mapOk(
+  fromNullable(user, () => new NotFoundError("User not found")),
+  toUserView,
+);
+```
+
+### ✗ Build a pipeline because it feels more abstract.
+
+```ts
+return andThen(andThen(andThen(result, a), b), c);
+```
+
+If the branch reads better, use the branch.
+
 ## Cancellation
 
 ### ✓ Pass the signal all the way into the I/O API.
@@ -43,6 +60,40 @@ Network timeouts, brief lock contentions, and flaky subprocess startup are reaso
 
 If the request shape is bad on attempt one, it will still be bad on attempt three.
 
+## Timeouts and timers
+
+### ✓ Use one deadline signal for the whole boundary.
+
+```ts
+const [error, response] = await fetchJsonSafe(url, {
+  timeoutMs: 5_000,
+  signal,
+});
+```
+
+### ✗ Scatter unrelated setTimeout calls through business logic.
+
+Timers without abort handling tend to outlive the work they were created for.
+
+## Parallel work
+
+### ✓ Put a ceiling on list-shaped work.
+
+```ts
+await mapAsyncLimit(readRows(file), processRow, {
+  concurrency: 4,
+  signal,
+});
+```
+
+### ✗ Start one promise for every item in a large collection.
+
+```ts
+await Promise.all(rows.map(processRow));
+```
+
+Small lists are fine. Unknown or user-sized lists need pressure control.
+
 ## Dependency injection
 
 ### ✓ Bind stable dependencies at the edge.
@@ -52,6 +103,18 @@ Loggers, repositories, mailers, and feature flags are good candidates for `injec
 ### ✗ Build a hidden service locator around it.
 
 If the dependencies are not obvious from the function signature, the code gets harder to review.
+
+## Configuration
+
+### ✓ Parse environment once.
+
+```ts
+const [error, config] = parseEnvSafe(configSchema);
+```
+
+### ✗ Read `process.env` from deep application code.
+
+It makes tests harder and hides what the function actually needs.
 
 ## Context
 
@@ -68,3 +131,24 @@ Configuration and stable dependencies should still be explicit.
 <Callout>
 A good rule of thumb: tuples are for work you expect to fail sometimes, thrown exceptions are for code that truly cannot continue. If a boundary requires exceptions, convert at that one spot with `unwrap()` and move on.
 </Callout>
+
+## IPC and UI state
+
+### ✓ Keep tuples at transport and service boundaries.
+
+```ts
+const result = await window.gitBridge.withSignal.status(signal, repoPath);
+```
+
+### ✓ Convert tuples into view state before rendering.
+
+```ts
+return match(result, {
+  ok: (data) => ({ kind: "ready" as const, data }),
+  err: (error) => ({ kind: "error" as const, message: error.message }),
+});
+```
+
+### ✗ Pass raw tuple results through every component prop.
+
+React, Vue, and Svelte components are usually clearer with domain-specific screen state.
