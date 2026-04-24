@@ -1,6 +1,6 @@
 {
   "name": "yieldless",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Native async/await primitives for tuple-based errors, structured concurrency, and Node/Electron workflows.",
   "type": "module",
   "main": "./dist/index.js",
