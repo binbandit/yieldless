@@ -1,0 +1,70 @@
+# yieldless/signal
+
+
+
+`yieldless/signal` adds a small missing piece around native cancellation: derived deadline signals that clean up after themselves.
+
+Exports [#exports]
+
+* `createTimeoutSignal(timeoutMs, options?): TimeoutSignal`
+* `withTimeout(operation, options): Promise<T>`
+* `class TimeoutError extends Error`
+
+Options [#options]
+
+| Option      | Description                                         |
+| ----------- | --------------------------------------------------- |
+| `timeoutMs` | Maximum time before the derived signal aborts       |
+| `signal`    | Optional parent signal to inherit cancellation from |
+| `reason`    | Optional custom timeout reason                      |
+
+Typical use [#typical-use]
+
+```ts
+import { safeTry } from "yieldless/error";
+import { withTimeout } from "yieldless/signal";
+
+const [error, response] = await safeTry(
+  withTimeout(
+    (signal) => fetch("https://example.com/api/repos", { signal }),
+    {
+      timeoutMs: 5_000,
+    },
+  ),
+);
+```
+
+Long-lived scope [#long-lived-scope]
+
+Use `createTimeoutSignal()` when you need to pass one deadline signal across several calls.
+
+```ts
+import { createTimeoutSignal } from "yieldless/signal";
+
+const deadline = createTimeoutSignal(10_000, {
+  signal: request.signal,
+});
+
+try {
+  const [error, result] = await runCommandSafe(
+    "git",
+    ["fetch", "--all"],
+    { signal: deadline.signal },
+  );
+} finally {
+  deadline[Symbol.dispose]();
+}
+```
+
+Operational rules [#operational-rules]
+
+* The parent signal wins if it aborts first.
+* Timeout failures use `TimeoutError` by default.
+* Disposing the derived signal clears its timer and parent listener.
+* `timeoutMs` must be zero or greater.
+
+Good fits [#good-fits]
+
+* HTTP requests that should not hang forever
+* Git commands or subprocesses with a firm deadline
+* Any abort-aware operation where you want one shared time budget

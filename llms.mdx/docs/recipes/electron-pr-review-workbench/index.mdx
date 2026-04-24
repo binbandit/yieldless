@@ -1,0 +1,148 @@
+# Electron PR Review Workbench
+
+
+
+If you are building a GitHub PR review app in Electron, Yieldless fits best in the main process, preload bridge, and service layer. It is less useful as the shape of your React component state.
+
+That distinction matters:
+
+* Use tuples while you are still doing failure-heavy work: GitHub API calls, local Git reads, diff parsing, cache reads, IPC boundaries.
+* Once the renderer receives the result, fold it into ordinary screen state and move on.
+
+Main-process contract [#main-process-contract]
+
+```ts
+import type { IpcProcedure } from "yieldless/ipc";
+
+type ReviewContract = {
+  loadPullRequest: IpcProcedure<
+    [owner: string, repo: string, number: number],
+    {
+      summary: PullRequestSummary;
+      files: PullRequestFile[];
+      threads: ReviewThread[];
+      diffSummary: string;
+    },
+    Error
+  >;
+};
+```
+
+Main-process implementation [#main-process-implementation]
+
+```ts
+import { all } from "yieldless/all";
+import { createAbortableIpcMain } from "yieldless/ipc";
+import { err, ok, safeTry } from "yieldless/error";
+import { runCommandSafe } from "yieldless/node";
+import { runTaskGroup } from "yieldless/task";
+
+const ipc = createAbortableIpcMain<ReviewContract>(ipcMain);
+const appLifecycle = new AbortController();
+
+ipc.handle("loadPullRequest", async (_event, requestSignal, owner, repo, number) => {
+  return await runTaskGroup(async (_group, signal) => {
+    const [fetchError, payload] = await all([
+      () => safeTry(github.loadPullRequest(owner, repo, number)),
+      () => safeTry(github.loadPullRequestFiles(owner, repo, number)),
+      () => safeTry(github.loadReviewThreads(owner, repo, number)),
+      () =>
+        runCommandSafe(
+          "git",
+          ["diff", "--stat", "origin/main...HEAD"],
+          { cwd: repositoryRoot, signal },
+        ),
+    ]);
+
+    if (fetchError) {
+      return err(fetchError);
+    }
+
+    const [summary, files, threads, diff] = payload;
+
+    return ok({
+      summary,
+      files,
+      threads,
+      diffSummary: diff.stdout,
+    });
+  }, {
+    signal: AbortSignal.any([appLifecycle.signal, requestSignal]),
+  });
+});
+```
+
+The important thing here is not the exact helper list. It is the layering:
+
+* `yieldless/error` keeps the boundary readable with `ok()` and `err()`.
+* `yieldless/all` loads the PR payload in parallel.
+* `yieldless/task` gives the whole request one shared cancellation signal.
+* `yieldless/node` keeps Git subprocess failures in the same tuple contract.
+
+Preload bridge [#preload-bridge]
+
+```ts
+import { createAbortableIpcBridge, createAbortableIpcRenderer } from "yieldless/ipc";
+
+const client = createAbortableIpcRenderer<ReviewContract>(ipcRenderer);
+
+export const reviewBridge = createAbortableIpcBridge(client, [
+  "loadPullRequest",
+] as const);
+```
+
+Renderer state [#renderer-state]
+
+This is the point where Yieldless should usually stop being the dominant shape.
+
+```ts
+import { match } from "yieldless/error";
+
+type PullRequestPayload = {
+  summary: PullRequestSummary;
+  files: PullRequestFile[];
+  threads: ReviewThread[];
+  diffSummary: string;
+};
+
+type PullRequestScreenState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "ready"; data: PullRequestPayload }
+  | { kind: "error"; message: string };
+
+async function loadPullRequest(
+  signal: AbortSignal,
+  owner: string,
+  repo: string,
+  number: number,
+): Promise<PullRequestScreenState> {
+  const result = await window.reviewBridge.withSignal.loadPullRequest(
+    signal,
+    owner,
+    repo,
+    number,
+  );
+
+  return match(result, {
+    ok: (data) => ({ kind: "ready", data }),
+    err: (error) => ({ kind: "error", message: error.message }),
+  });
+}
+```
+
+That keeps the renderer normal. Components render `idle`, `loading`, `ready`, or `error`. They do not need to carry `[error, value]` through every prop.
+
+Why this fits PR review tools well [#why-this-fits-pr-review-tools-well]
+
+* Pull-request work crosses many noisy boundaries: GitHub HTTP, local Git, caches, and Electron IPC.
+* Cancellation matters because users jump between PRs quickly and the old load should stop being important.
+* The renderer wants stable view state, not a low-level transport shape.
+
+Rule of thumb [#rule-of-thumb]
+
+<Callout>
+  * Use Yieldless in the main process and preload boundary.
+  * Convert tuples into domain state at the renderer edge.
+  * Do not force tuple results deep into component trees.
+</Callout>

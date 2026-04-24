@@ -9,6 +9,9 @@ Exports [#exports]
 * `createIpcMain(ipcMain)`
 * `createIpcRenderer(ipcRenderer)`
 * `createIpcBridge(client, channels)`
+* `createAbortableIpcMain(ipcMain)`
+* `createAbortableIpcRenderer(ipcRenderer)`
+* `createAbortableIpcBridge(client, channels)`
 * `serializeIpcError(error)`
 * `deserializeIpcResult(payload)`
 
@@ -18,6 +21,8 @@ Core types [#core-types]
 * `IpcContract`
 * `IpcClient`
 * `IpcBridge`
+* `AbortableIpcClient`
+* `AbortableIpcBridge`
 * `SerializedIpcError`
 
 Contract example [#contract-example]
@@ -47,6 +52,34 @@ const client = createIpcRenderer<Contract>(ipcRenderer);
 const [error, result] = await client.invoke("getStatus", "/tmp/repo");
 ```
 
+Abortable renderer requests [#abortable-renderer-requests]
+
+When a renderer can abandon stale work, use the abortable helpers instead of pushing request IDs and cancel channels through your own app code.
+
+```ts
+const client = createAbortableIpcRenderer<Contract>(ipcRenderer);
+const bridge = createAbortableIpcBridge(client, ["getStatus"] as const);
+const controller = new AbortController();
+
+const result = await bridge.withSignal.getStatus(
+  controller.signal,
+  "/tmp/repo",
+);
+```
+
+On the main-process side, the handler receives a shared `AbortSignal`:
+
+```ts
+const server = createAbortableIpcMain<Contract>(ipcMain);
+
+server.handle("getStatus", async (_event, signal, directory) => {
+  return await runCommandSafe("git", ["status", "--short"], {
+    cwd: directory,
+    signal,
+  });
+});
+```
+
 Why the serialization layer matters [#why-the-serialization-layer-matters]
 
 <Callout>
@@ -58,3 +91,4 @@ Good fits [#good-fits]
 * React or Vue renderers calling main-process Git operations
 * Preload bridges that expose only an allowlisted set of channels
 * Desktop apps where you want one consistent error model from UI to subprocess
+* Screens that need to cancel stale in-flight requests when the user navigates away

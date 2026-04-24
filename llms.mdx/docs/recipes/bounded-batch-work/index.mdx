@@ -1,0 +1,70 @@
+# Bounded Batch Work
+
+
+
+This recipe is for the common "do this for every item" path: refresh every repo, fetch every avatar, resize every image, or inspect every file. The work is independent, but starting it all at once can make a user's machine or an upstream service miserable.
+
+Use `mapLimit()` when you want tuple errors, shared cancellation, stable output order, and a hard ceiling on active work.
+
+Refresh several repositories [#refresh-several-repositories]
+
+```ts
+import { mapLimit } from "yieldless/all";
+import { runCommandSafe } from "yieldless/node";
+
+interface Repository {
+  readonly id: string;
+  readonly path: string;
+}
+
+export async function refreshRepositories(
+  repositories: readonly Repository[],
+  signal: AbortSignal,
+) {
+  return await mapLimit(
+    repositories,
+    async (repository, _index, itemSignal) => {
+      const [fetchError] = await runCommandSafe("git", ["fetch", "--prune"], {
+        cwd: repository.path,
+        signal: itemSignal,
+      });
+
+      if (fetchError) {
+        return [fetchError, null] as const;
+      }
+
+      const [statusError, status] = await runCommandSafe(
+        "git",
+        ["status", "--short"],
+        {
+          cwd: repository.path,
+          signal: itemSignal,
+        },
+      );
+
+      if (statusError) {
+        return [statusError, null] as const;
+      }
+
+      return [
+        null,
+        {
+          id: repository.id,
+          status: status.stdout,
+        },
+      ] as const;
+    },
+    {
+      concurrency: 3,
+      signal,
+    },
+  );
+}
+```
+
+Why this is friendlier [#why-this-is-friendlier]
+
+* Output order matches `repositories`, so UI code does not need to sort the result back into place.
+* The first tuple error aborts in-flight work and stops starting new items.
+* A parent `AbortSignal` can cancel the whole batch when the user navigates away.
+* `concurrency` is explicit, so expensive work stays polite by default.

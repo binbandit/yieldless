@@ -2,11 +2,12 @@
 
 
 
-The fastest way to understand Yieldless is to wire three modules together:
+The fastest way to understand Yieldless is to wire the core pieces together:
 
 1. `yieldless/error` to keep failures in tuple form
-2. `yieldless/task` to fan work out and cancel siblings cleanly
+2. `yieldless/task` and `yieldless/all` to fan work out and cancel siblings cleanly
 3. `yieldless/retry` to handle noisy infrastructure without leaking timers
+4. `yieldless/signal` to enforce one clear deadline on the whole boundary
 
 Install [#install]
 
@@ -39,6 +40,8 @@ Step 2: group related work under one cancellation signal [#step-2-group-related-
 ```ts
 import { runTaskGroup } from "yieldless/task";
 
+const requestController = new AbortController();
+
 const summary = await runTaskGroup(async (group) => {
   const refs = group.spawn((signal) => readRefs(repo.path, signal));
   const status = group.spawn((signal) => readStatus(repo.path, signal));
@@ -47,10 +50,31 @@ const summary = await runTaskGroup(async (group) => {
     refs: await refs,
     status: await status,
   };
+}, {
+  signal: requestController.signal,
 });
 ```
 
 If `readRefs()` throws, the group aborts the shared signal, waits for `readStatus()` to settle, and then rethrows the original failure.
+If the request or UI flow already has an `AbortSignal`, pass it in so the whole group inherits upstream cancellation.
+
+When the work is a list rather than a few named tasks, use `mapLimit()` to keep pressure on the outside world under control.
+
+```ts
+import { mapLimit } from "yieldless/all";
+
+const [thumbnailError, thumbnails] = await mapLimit(
+  images,
+  (image, _index, signal) => renderThumbnail(image, signal),
+  { concurrency: 4, signal: requestController.signal },
+);
+
+if (thumbnailError) {
+  return [thumbnailError, null] as const;
+}
+```
+
+The result order matches the input order, and the first tuple error aborts the remaining in-flight work.
 
 Step 3: add retries where the outside world is unreliable [#step-3-add-retries-where-the-outside-world-is-unreliable]
 
@@ -77,6 +101,20 @@ The retry loop respects `AbortSignal`, so if a parent task group is canceled, th
 
 Step 4: keep the edges boring [#step-4-keep-the-edges-boring]
 
+When a boundary needs a firm time budget, derive one signal and pass it through the whole call chain.
+
+```ts
+import { safeTry } from "yieldless/error";
+import { withTimeout } from "yieldless/signal";
+
+const [fetchError, payload] = await safeTry(
+  withTimeout(
+    (signal) => fetchRepository(repoId, signal),
+    { timeoutMs: 5_000 },
+  ),
+);
+```
+
 The package ships adapters for common backend boundaries:
 
 * `yieldless/schema` keeps validators in tuple form
@@ -87,6 +125,7 @@ The package ships adapters for common backend boundaries:
 A full request flow [#a-full-request-flow]
 
 ```ts
+import { safeTry } from "yieldless/error";
 import { safeRetry } from "yieldless/retry";
 import { parseSafe } from "yieldless/schema";
 import { NotFoundError, honoHandler } from "yieldless/router";

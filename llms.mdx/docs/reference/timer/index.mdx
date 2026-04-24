@@ -1,0 +1,56 @@
+# yieldless/timer
+
+
+
+`yieldless/timer` covers the small timing jobs that show up around network and UI work: wait for a little while, make that wait cancelable, or poll a tuple-returning operation until it is ready.
+
+It is deliberately not a scheduler. Timers stay native, cancellation stays on `AbortSignal`, and polling returns the same tuple shape as the rest of Yieldless.
+
+Exports [#exports]
+
+* `sleep(delayMs, options): Promise<void>`
+* `sleepSafe(delayMs, options): Promise<SafeResult<void, E>>`
+* `poll(operation, options): Promise<SafeResult<T, E>>`
+* `type PollOperation<T, E = Error> = (attempt, signal) => SafeResult<T, E> | PromiseLike<SafeResult<T, E>>`
+* `type PollOptions<E = Error> = { intervalMs, maxAttempts?, timeoutMs?, signal?, shouldContinue? }`
+
+Sleep [#sleep]
+
+```ts
+import { sleep } from "yieldless/timer";
+
+await sleep(250, { signal });
+```
+
+If the signal aborts, `sleep()` rejects with the abort reason. Use `sleepSafe()` when the wait itself belongs in tuple form.
+
+```ts
+import { sleepSafe } from "yieldless/timer";
+
+const [error] = await sleepSafe(250, { signal });
+```
+
+Poll [#poll]
+
+```ts
+import { poll } from "yieldless/timer";
+
+const [error, job] = await poll(
+  async (_attempt, signal) => getJob(jobId, signal),
+  {
+    intervalMs: 1_000,
+    timeoutMs: 30_000,
+    signal,
+  },
+);
+```
+
+`poll()` stops when the operation returns `[null, value]`, when `maxAttempts` is reached, when `shouldContinue()` returns `false`, or when cancellation/timeout aborts the derived signal.
+
+Behavior notes [#behavior-notes]
+
+* `sleep(0)` resolves immediately and is useful as an async yield point.
+* Negative or non-finite delays throw `RangeError`.
+* Poll attempts start at `1`.
+* `timeoutMs` uses `yieldless/signal` internally, so timeout errors are `TimeoutError`.
+* The operation receives the same signal that controls the interval wait.
