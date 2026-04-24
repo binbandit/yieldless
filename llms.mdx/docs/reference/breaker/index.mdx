@@ -1,0 +1,74 @@
+# yieldless/breaker
+
+
+
+`yieldless/breaker` protects a dependency after repeated failures. It tracks a small state machine: `closed`, `open`, and `half-open`. When enough failures trip the breaker, new calls fail fast with `CircuitOpenError` until the cooldown passes.
+
+Use it around external services, subprocess-heavy integrations, or any expensive boundary where repeated failures should stop causing more pressure.
+
+Exports [#exports]
+
+* `createCircuitBreaker(operation, options): CircuitBreaker`
+* `class CircuitOpenError extends Error`
+* `type CircuitBreakerState = "closed" | "half-open" | "open"`
+* `type CircuitBreakerOptions = { failureThreshold, cooldownMs, successThreshold, shouldTrip, onStateChange }`
+* `type CircuitBreaker = callable & { state, failureCount, reset }`
+
+Example [#example]
+
+```ts
+import { createCircuitBreaker } from "yieldless/breaker";
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const loadGitHubUser = createCircuitBreaker(
+  (_signal, login: string) =>
+    fetchJsonSafe<User>(`https://api.github.com/users/${login}`),
+  {
+    failureThreshold: 3,
+    cooldownMs: 30_000,
+  },
+);
+
+const [error, user] = await loadGitHubUser("octocat");
+```
+
+Behavior notes [#behavior-notes]
+
+* The breaker opens after `failureThreshold` tripping failures.
+* While open, calls return `[new CircuitOpenError(), null]`.
+* After `cooldownMs`, the next call moves the breaker to `half-open`.
+* A half-open success closes the breaker once `successThreshold` is reached.
+* A half-open failure opens it again.
+* `shouldTrip(error)` lets you ignore expected failures such as validation errors.
+* `reset()` closes the breaker and clears counts.
+
+Good [#good]
+
+Trip only on dependency failures, not user input.
+
+```ts
+const breaker = createCircuitBreaker(loadUser, {
+  failureThreshold: 3,
+  cooldownMs: 10_000,
+  shouldTrip: (error) => !(error instanceof ValidationError),
+});
+```
+
+Expose breaker state for diagnostics.
+
+```ts
+logger.info("github breaker", { state: breaker.state });
+```
+
+Avoid [#avoid]
+
+Do not use a circuit breaker for ordinary validation or authorization branches.
+
+```ts
+const guarded = createCircuitBreaker(validateUserInput, {
+  failureThreshold: 1,
+  cooldownMs: 60_000,
+});
+```
+
+Use it for unstable boundaries where failing fast reduces damage.

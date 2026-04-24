@@ -1,0 +1,93 @@
+# yieldless/limiter
+
+
+
+`yieldless/limiter` keeps pressure explicit. It gives you a tiny semaphore for local concurrency and a simple rate limiter for APIs that need paced calls. Both are built on promises and `AbortSignal`.
+
+Use it when many independent flows share a limited resource: subprocess slots, database connections, API quota, filesystem pressure, or CPU-heavy local work.
+
+Exports [#exports]
+
+* `createSemaphore(capacity): Semaphore`
+* `withPermit(semaphore, operation, options): Promise<SafeResult<T, E>>`
+* `createRateLimiter({ limit, intervalMs }): RateLimiter`
+* `type Semaphore = { acquire, tryAcquire, withPermit, available, capacity, pending }`
+* `type SemaphorePermit = { release, [Symbol.dispose] }`
+* `type RateLimiter = { take, takeSafe, clear, pending }`
+
+Example [#example]
+
+```ts
+import { createSemaphore, withPermit } from "yieldless/limiter";
+import { safeTry } from "yieldless/error";
+
+const gitSlots = createSemaphore(3);
+
+const [error, result] = await withPermit(
+  gitSlots,
+  (signal) => safeTry(runGitCommand(repoPath, ["status"], { signal })),
+  { signal },
+);
+```
+
+Pace API calls:
+
+```ts
+import { createRateLimiter } from "yieldless/limiter";
+
+const githubLimit = createRateLimiter({
+  limit: 2,
+  intervalMs: 1_000,
+});
+
+await githubLimit.take({ signal });
+const response = await fetch(url, { signal });
+```
+
+Behavior notes [#behavior-notes]
+
+* `createSemaphore(0)` throws a `RangeError`.
+* `acquire()` waits until a permit is available or the signal aborts.
+* `tryAcquire()` returns `null` instead of waiting.
+* `withPermit()` always releases the permit in a `finally` block.
+* The exported `withPermit()` helper expects tuple-returning work and normalizes acquisition or thrown failures into tuple errors.
+* `createRateLimiter()` schedules calls into fixed-size windows.
+* `rateLimiter.clear(reason)` rejects pending waiters.
+
+Good [#good]
+
+Protect the boundary, not every call site.
+
+```ts
+const subprocesses = createSemaphore(4);
+
+export function runLimitedGit(args: readonly string[], signal: AbortSignal) {
+  return withPermit(
+    subprocesses,
+    (permitSignal) => runCommandSafe("git", args, { signal: permitSignal }),
+    { signal },
+  );
+}
+```
+
+Use `takeSafe()` when rate-limit waiting is part of a tuple flow.
+
+```ts
+const [limitError] = await githubLimit.takeSafe({ signal });
+if (limitError) return [limitError, null] as const;
+```
+
+Avoid [#avoid]
+
+Do not acquire a permit and forget to release it.
+
+```ts
+const permit = await semaphore.acquire();
+await doWork();
+```
+
+Prefer scoped release.
+
+```ts
+await semaphore.withPermit((signal) => doWork(signal), { signal });
+```

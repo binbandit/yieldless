@@ -42,6 +42,8 @@ Per-module API details, examples, behavior notes, and good/avoid usage guidance.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/env/index.mdx
 - [yieldless/retry](https://binbandit.github.io/yieldless/docs/reference/retry/): Exponential backoff with jitter and abort-aware delays.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/retry/index.mdx
+- [yieldless/schedule](https://binbandit.github.io/yieldless/docs/reference/schedule/): Reusable delay and stop policies for tuple retry and polling loops.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/schedule/index.mdx
 - [yieldless/signal](https://binbandit.github.io/yieldless/docs/reference/signal/): Deadline helpers for AbortSignal-aware work.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/signal/index.mdx
 - [yieldless/timer](https://binbandit.github.io/yieldless/docs/reference/timer/): Abort-aware sleep and polling helpers built on native timers.
@@ -56,6 +58,18 @@ Per-module API details, examples, behavior notes, and good/avoid usage guidance.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/all/index.mdx
 - [yieldless/iterable](https://binbandit.github.io/yieldless/docs/reference/iterable/): Tuple helpers for sync and async iterable workflows.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/iterable/index.mdx
+- [yieldless/queue](https://binbandit.github.io/yieldless/docs/reference/queue/): Bounded async queues with abortable offer, take, close, and async iteration.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/queue/index.mdx
+- [yieldless/pubsub](https://binbandit.github.io/yieldless/docs/reference/pubsub/): In-process broadcast channels with async-iterable subscriptions and optional replay.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/pubsub/index.mdx
+- [yieldless/limiter](https://binbandit.github.io/yieldless/docs/reference/limiter/): Semaphores and rate limiters for protecting shared async boundaries.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/limiter/index.mdx
+- [yieldless/cache](https://binbandit.github.io/yieldless/docs/reference/cache/): TTL/LRU tuple caches with in-flight load sharing.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/cache/index.mdx
+- [yieldless/batcher](https://binbandit.github.io/yieldless/docs/reference/batcher/): DataLoader-style keyed batching for tuple-returning async reads.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/batcher/index.mdx
+- [yieldless/breaker](https://binbandit.github.io/yieldless/docs/reference/breaker/): Circuit breakers for flaky tuple-returning dependencies.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/breaker/index.mdx
 - [yieldless/singleflight](https://binbandit.github.io/yieldless/docs/reference/singleflight/): Deduplicate concurrent tuple work by key.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/singleflight/index.mdx
 - [yieldless/schema](https://binbandit.github.io/yieldless/docs/reference/schema/): Tuple adapters for safeParse(), parse(), safeParseAsync(), and parseAsync() style validators.
@@ -66,6 +80,8 @@ Per-module API details, examples, behavior notes, and good/avoid usage guidance.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/ipc/index.mdx
 - [yieldless/node](https://binbandit.github.io/yieldless/docs/reference/node/): Tuple wrappers for Node filesystem work and child-process execution.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/node/index.mdx
+- [yieldless/test](https://binbandit.github.io/yieldless/docs/reference/test/): Small async test helpers for deferred promises, manual clocks, and abort signals.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/test/index.mdx
 
 ## Recipes
 

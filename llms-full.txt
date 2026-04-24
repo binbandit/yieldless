@@ -335,7 +335,14 @@ The capability map [#the-capability-map]
 | Run related promise work together            | `yieldless/task`         | Shared `AbortSignal` and sibling failure cleanup.                  |
 | Run tuple tasks in parallel                  | `yieldless/all`          | Tuple-native `all()`, `race()`, and fixed-list `mapLimit()`.       |
 | Process sync or async streams of values      | `yieldless/iterable`     | `collect()`, sequential `forEach()`, and bounded iterable mapping. |
+| Connect producers and consumers              | `yieldless/queue`        | Bounded async queues with abortable offer/take backpressure.       |
+| Broadcast in-process events                  | `yieldless/pubsub`       | Async-iterable subscriptions with optional replay.                 |
+| Protect shared capacity or API quota         | `yieldless/limiter`      | Semaphores and rate limiters for explicit backpressure.            |
+| Cache expensive async reads                  | `yieldless/cache`        | TTL/LRU caching with shared in-flight loads.                       |
+| Batch nearby keyed reads                     | `yieldless/batcher`      | DataLoader-style coalescing without another dependency.            |
+| Guard flaky dependencies                     | `yieldless/breaker`      | Circuit breaking for repeated tuple failures.                      |
 | Retry transient tuple failures               | `yieldless/retry`        | Exponential backoff with jitter and abort-aware waits.             |
+| Reuse retry or polling timing rules          | `yieldless/schedule`     | Composable delay and stop policies without a scheduler.            |
 | Apply a time budget                          | `yieldless/signal`       | Disposable derived deadline signals.                               |
 | Sleep or poll                                | `yieldless/timer`        | Abort-aware timer utilities without a scheduler.                   |
 | Fetch JSON or inspect HTTP status            | `yieldless/fetch`        | Native fetch with tuple errors, timeouts, and JSON parsing.        |
@@ -349,6 +356,7 @@ The capability map [#the-capability-map]
 | Scope cleanup                                | `yieldless/resource`     | Native `await using` for acquire/release pairs.                    |
 | Bind stable dependencies                     | `yieldless/di`           | Reader-like dependency binding with plain functions.               |
 | Carry request metadata                       | `yieldless/context`      | `AsyncLocalStorage` for request-scoped values and spans.           |
+| Test async helpers                           | `yieldless/test`         | Deferred promises, manual clocks, and controlled abort signals.    |
 
 Good adoption path [#good-adoption-path]
 
@@ -1381,6 +1389,104 @@ await safeRetry(
 ```
 
 
+# yieldless/schedule
+
+
+
+`yieldless/schedule` gives timing policy a name without introducing a runtime. A schedule is just a function from the latest attempt state to a decision: continue or stop, and how long to wait before trying again.
+
+Use it when retry or polling policy is shared across call sites, when tests need to inspect timing decisions, or when a loop needs both a delay policy and a stopping rule.
+
+Exports [#exports]
+
+* `type SchedulePolicy<E = unknown> = (state: ScheduleState<E>) => ScheduleDecision`
+* `type ScheduleState<E = unknown> = { attempt, elapsedMs, error, signal }`
+* `type ScheduleDecision = { continue: boolean, delayMs: number }`
+* `fixedDelay(delayMs): SchedulePolicy`
+* `exponentialBackoff({ baseDelayMs, factor, maxDelayMs, jitter }): SchedulePolicy`
+* `maxAttempts(attempts): SchedulePolicy`
+* `maxElapsedTime(maxElapsedMs): SchedulePolicy`
+* `composeSchedules(...policies): SchedulePolicy`
+* `getScheduleDecision(policy, state): ScheduleDecision`
+* `waitForSchedule(policy, state): Promise<SafeResult<void, E>>`
+* `runScheduled(operation, policy, options): Promise<SafeResult<T, E>>`
+* `continueNow(): SchedulePolicy`
+* `stopSchedule(): SchedulePolicy`
+
+Example [#example]
+
+```ts
+import {
+  composeSchedules,
+  exponentialBackoff,
+  maxAttempts,
+  runScheduled,
+} from "yieldless/schedule";
+
+const schedule = composeSchedules(
+  exponentialBackoff({
+    baseDelayMs: 100,
+    jitter: "full",
+    maxDelayMs: 2_000,
+  }),
+  maxAttempts(5),
+);
+
+const [error, user] = await runScheduled(
+  (attempt, signal) => loadUserFromApi(userId, { attempt, signal }),
+  schedule,
+  { signal },
+);
+```
+
+Behavior notes [#behavior-notes]
+
+* `composeSchedules()` stops when any child policy stops.
+* When multiple policies continue, the largest `delayMs` wins.
+* `maxAttempts(3)` allows attempts `1`, `2`, and `3`, then stops before attempt `4`.
+* `waitForSchedule()` returns the latest `error` when the policy stops.
+* `runScheduled()` normalizes thrown operation failures into tuple errors.
+* All waiting is abort-aware through `yieldless/timer`.
+
+Good [#good]
+
+Define retry policy once and reuse it.
+
+```ts
+const apiSchedule = composeSchedules(
+  exponentialBackoff({ baseDelayMs: 150, maxDelayMs: 5_000 }),
+  maxAttempts(4),
+);
+```
+
+Inspect a policy without sleeping.
+
+```ts
+const decision = getScheduleDecision(apiSchedule, {
+  attempt: 2,
+  elapsedMs: 500,
+  signal,
+});
+```
+
+Avoid [#avoid]
+
+Do not hide business decisions inside a global schedule.
+
+```ts
+const schedule = composeSchedules(exponentialBackoff(), maxAttempts(10));
+```
+
+Prefer naming the boundary-specific reason.
+
+```ts
+const githubApiSchedule = composeSchedules(
+  exponentialBackoff({ baseDelayMs: 250 }),
+  maxAttempts(3),
+);
+```
+
+
 # yieldless/signal
 
 
@@ -2043,6 +2149,477 @@ await Promise.all(rows.map(processRow));
 Use `forEach()` or `mapAsyncLimit()` so the iterable can stream and cancellation can stop the work early.
 
 
+# yieldless/queue
+
+
+
+`yieldless/queue` connects producers and consumers without a framework runtime. It is useful when work arrives faster than it can be processed, or when a worker loop should consume values as they appear.
+
+The queue supports bounded capacity, producer backpressure, abortable waits, explicit close, draining, and `for await` consumption.
+
+Exports [#exports]
+
+* `createQueue<T, E = Error>({ capacity }): AsyncQueue<T, E>`
+* `class QueueClosedError extends Error`
+* `type AsyncQueue<T, E> = { offer, take, close, drain, clear, size, capacity, closed, pendingOffers, pendingTakes } & AsyncIterable<T>`
+* `type QueueOperationOptions = { signal?: AbortSignal }`
+
+Example [#example]
+
+```ts
+import { createQueue } from "yieldless/queue";
+
+const queue = createQueue<string>({ capacity: 100 });
+
+async function worker(signal: AbortSignal) {
+  for await (const jobId of queue) {
+    if (signal.aborted) return;
+    await processJob(jobId, signal);
+  }
+}
+
+await queue.offer("job-1", { signal });
+```
+
+Behavior notes [#behavior-notes]
+
+* `capacity` defaults to `Infinity`.
+* A full bounded queue makes `offer()` wait until a consumer takes a value.
+* A waiting `take()` receives the next offered value immediately.
+* `offer()` and `take()` return tuple results instead of throwing on abort or close.
+* `close(reason)` resolves pending and future operations with `[reason, null]`.
+* Async iteration ends when the queue closes.
+* `drain()` removes buffered values and then gives pending offers a chance to enter the queue.
+
+Good [#good]
+
+Use a bounded queue to make backpressure visible.
+
+```ts
+const thumbnails = createQueue<ImageJob>({ capacity: 50 });
+
+await thumbnails.offer(job, { signal });
+```
+
+Consume with ordinary async iteration.
+
+```ts
+for await (const job of thumbnails) {
+  await renderThumbnail(job, signal);
+}
+```
+
+Avoid [#avoid]
+
+Do not use an unbounded queue for input you do not control.
+
+```ts
+const queue = createQueue<IncomingRequest>();
+```
+
+Prefer a capacity that matches the worker pool or memory budget.
+
+```ts
+const queue = createQueue<IncomingRequest>({ capacity: 200 });
+```
+
+
+# yieldless/pubsub
+
+
+
+`yieldless/pubsub` broadcasts values to many local subscribers. It is intentionally in-process and small: publish values, subscribe with `for await`, close subscriptions when they are no longer needed, and optionally replay the latest values to late subscribers.
+
+Use it for CLI progress, Electron main-process status streams, local job updates, or tests that need observable fanout.
+
+Exports [#exports]
+
+* `createPubSub<T, E = Error>({ replay, subscriberCapacity }): PubSub<T, E>`
+* `type PubSub<T, E> = { publish, subscribe, close, subscriberCount, closed }`
+* `type PubSubSubscription<T> = AsyncIterable<T> & { next, close }`
+
+Example [#example]
+
+```ts
+import { createPubSub } from "yieldless/pubsub";
+
+const progress = createPubSub<{ id: string; percent: number }>({
+  replay: 1,
+});
+
+const subscription = progress.subscribe();
+
+void (async () => {
+  for await (const update of subscription) {
+    renderProgress(update);
+  }
+})();
+
+progress.publish({ id: "index", percent: 25 });
+```
+
+Behavior notes [#behavior-notes]
+
+* `publish(value)` returns the number of active subscribers.
+* `replay` defaults to `0`.
+* `subscribe()` returns an async iterable subscription.
+* `subscription.close()` removes that subscriber and closes its internal queue.
+* `close(reason)` closes all subscribers and prevents future publishes.
+* Each subscriber has its own queue. `subscriberCapacity` can bound per-subscriber buffering.
+
+Good [#good]
+
+Use pubsub for local fanout, not remote messaging.
+
+```ts
+const buildEvents = createPubSub<BuildEvent>({ replay: 1 });
+```
+
+Close subscriptions owned by short-lived UI or request scopes.
+
+```ts
+const subscription = buildEvents.subscribe();
+
+try {
+  for await (const event of subscription) {
+    send(event);
+  }
+} finally {
+  subscription.close();
+}
+```
+
+Avoid [#avoid]
+
+Do not treat it as a durable queue.
+
+```ts
+const orders = createPubSub<Order>();
+```
+
+Use `yieldless/queue` when every item must be processed by a worker. Use `yieldless/pubsub` when every current listener should hear the same update.
+
+
+# yieldless/limiter
+
+
+
+`yieldless/limiter` keeps pressure explicit. It gives you a tiny semaphore for local concurrency and a simple rate limiter for APIs that need paced calls. Both are built on promises and `AbortSignal`.
+
+Use it when many independent flows share a limited resource: subprocess slots, database connections, API quota, filesystem pressure, or CPU-heavy local work.
+
+Exports [#exports]
+
+* `createSemaphore(capacity): Semaphore`
+* `withPermit(semaphore, operation, options): Promise<SafeResult<T, E>>`
+* `createRateLimiter({ limit, intervalMs }): RateLimiter`
+* `type Semaphore = { acquire, tryAcquire, withPermit, available, capacity, pending }`
+* `type SemaphorePermit = { release, [Symbol.dispose] }`
+* `type RateLimiter = { take, takeSafe, clear, pending }`
+
+Example [#example]
+
+```ts
+import { createSemaphore, withPermit } from "yieldless/limiter";
+import { safeTry } from "yieldless/error";
+
+const gitSlots = createSemaphore(3);
+
+const [error, result] = await withPermit(
+  gitSlots,
+  (signal) => safeTry(runGitCommand(repoPath, ["status"], { signal })),
+  { signal },
+);
+```
+
+Pace API calls:
+
+```ts
+import { createRateLimiter } from "yieldless/limiter";
+
+const githubLimit = createRateLimiter({
+  limit: 2,
+  intervalMs: 1_000,
+});
+
+await githubLimit.take({ signal });
+const response = await fetch(url, { signal });
+```
+
+Behavior notes [#behavior-notes]
+
+* `createSemaphore(0)` throws a `RangeError`.
+* `acquire()` waits until a permit is available or the signal aborts.
+* `tryAcquire()` returns `null` instead of waiting.
+* `withPermit()` always releases the permit in a `finally` block.
+* The exported `withPermit()` helper expects tuple-returning work and normalizes acquisition or thrown failures into tuple errors.
+* `createRateLimiter()` schedules calls into fixed-size windows.
+* `rateLimiter.clear(reason)` rejects pending waiters.
+
+Good [#good]
+
+Protect the boundary, not every call site.
+
+```ts
+const subprocesses = createSemaphore(4);
+
+export function runLimitedGit(args: readonly string[], signal: AbortSignal) {
+  return withPermit(
+    subprocesses,
+    (permitSignal) => runCommandSafe("git", args, { signal: permitSignal }),
+    { signal },
+  );
+}
+```
+
+Use `takeSafe()` when rate-limit waiting is part of a tuple flow.
+
+```ts
+const [limitError] = await githubLimit.takeSafe({ signal });
+if (limitError) return [limitError, null] as const;
+```
+
+Avoid [#avoid]
+
+Do not acquire a permit and forget to release it.
+
+```ts
+const permit = await semaphore.acquire();
+await doWork();
+```
+
+Prefer scoped release.
+
+```ts
+await semaphore.withPermit((signal) => doWork(signal), { signal });
+```
+
+
+# yieldless/cache
+
+
+
+`yieldless/cache` stores successful tuple load results and shares in-flight loads for the same key. It is useful for API clients, metadata readers, schema discovery, docs search, and any expensive async read where several callers can ask for the same thing.
+
+It is intentionally small: no background worker, no global store, no runtime. The cache loads on demand, expires entries by TTL, evicts least-recently-used entries by size, and keeps errors out of the cache.
+
+Exports [#exports]
+
+* `createCache({ load, getKey, maxSize, ttlMs }): Cache`
+* `type Cache<Key, Value, E> = { get, refresh, delete, clear, has, stats, size }`
+* `type CacheStats = { hits, misses, inFlight, size }`
+* `type CacheGetOptions = { signal?: AbortSignal }`
+
+Example [#example]
+
+```ts
+import { createCache } from "yieldless/cache";
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const userCache = createCache({
+  ttlMs: 30_000,
+  maxSize: 500,
+  load: (userId: string, signal) =>
+    fetchJsonSafe<User>(`/api/users/${userId}`, { signal }),
+});
+
+const [error, user] = await userCache.get("u_123", { signal });
+```
+
+Behavior notes [#behavior-notes]
+
+* Only successful `[null, value]` results are cached.
+* Concurrent `get()` calls for the same key share the same load.
+* `refresh()` skips the stored value and starts or joins the in-flight load.
+* `delete(key)` removes cached and in-flight work for the key, aborting an in-flight load.
+* `clear()` removes all cached entries and aborts all in-flight loads.
+* `ttlMs` defaults to no expiry. `maxSize` defaults to a very large limit.
+* Reading a cached value refreshes its LRU position.
+
+Good [#good]
+
+Cache read-through data at the boundary.
+
+```ts
+const repoCache = createCache({
+  maxSize: 200,
+  ttlMs: 60_000,
+  load: (repoId: string, signal) => loadRepository(repoId, signal),
+});
+```
+
+Use `refresh()` when a user explicitly asks for fresh data.
+
+```ts
+const result = await repoCache.refresh(repoId, { signal });
+```
+
+Avoid [#avoid]
+
+Do not cache commands with side effects.
+
+```ts
+const cache = createCache({
+  load: (_id, signal) => createPullRequest(signal),
+});
+```
+
+Prefer cache keys that describe pure reads.
+
+```ts
+const cache = createCache({
+  load: (repoId, signal) => loadRepositorySummary(repoId, signal),
+});
+```
+
+
+# yieldless/batcher
+
+
+
+`yieldless/batcher` coalesces nearby `load(key)` calls into one `loadMany(keys, signal)` call. It is useful when many screens, resolvers, or workflow steps can ask for related data in the same tick.
+
+The module stays intentionally boring: it does not cache, it does not add a scheduler, and it does not require a runtime. It batches pending keys, maps results back by index, and returns tuple results to each caller.
+
+Exports [#exports]
+
+* `createBatcher({ loadMany, waitMs, maxBatchSize }): Batcher`
+* `class MissingBatchResultError extends Error`
+* `type Batcher<Key, Value, E> = { load, clear, pending }`
+* `type BatcherLoadOptions = { signal?: AbortSignal }`
+
+Example [#example]
+
+```ts
+import { createBatcher } from "yieldless/batcher";
+
+const users = createBatcher({
+  waitMs: 1,
+  maxBatchSize: 100,
+  loadMany: (ids: readonly string[], signal) =>
+    loadUsersByIds(ids, { signal }),
+});
+
+const [error, user] = await users.load("u_123", { signal });
+```
+
+Behavior notes [#behavior-notes]
+
+* `waitMs` defaults to `0`, which batches calls queued in the same turn.
+* `maxBatchSize` flushes a batch early when enough keys are waiting.
+* `loadMany()` must return values in the same order as the input keys.
+* If `loadMany()` returns `[error, null]`, every waiting caller receives that error.
+* If a result is missing for an index, that caller receives `MissingBatchResultError`.
+* A pending `load()` can be aborted before the batch flushes.
+* `clear(reason)` resolves all pending loads with the reason.
+
+Good [#good]
+
+Use a batcher where the backend already supports bulk reads.
+
+```ts
+const labels = createBatcher({
+  loadMany: (ids, signal) => loadLabels(ids, signal),
+});
+```
+
+Keep caching separate when you need both.
+
+```ts
+const labelCache = createCache({
+  load: (id, signal) => labels.load(id, { signal }),
+});
+```
+
+Avoid [#avoid]
+
+Do not use batching to hide write side effects.
+
+```ts
+const writes = createBatcher({
+  loadMany: (inputs, signal) => updateManyRecords(inputs, signal),
+});
+```
+
+Prefer explicit write orchestration for mutations, and use `yieldless/batcher` for read-like keyed loading.
+
+
+# yieldless/breaker
+
+
+
+`yieldless/breaker` protects a dependency after repeated failures. It tracks a small state machine: `closed`, `open`, and `half-open`. When enough failures trip the breaker, new calls fail fast with `CircuitOpenError` until the cooldown passes.
+
+Use it around external services, subprocess-heavy integrations, or any expensive boundary where repeated failures should stop causing more pressure.
+
+Exports [#exports]
+
+* `createCircuitBreaker(operation, options): CircuitBreaker`
+* `class CircuitOpenError extends Error`
+* `type CircuitBreakerState = "closed" | "half-open" | "open"`
+* `type CircuitBreakerOptions = { failureThreshold, cooldownMs, successThreshold, shouldTrip, onStateChange }`
+* `type CircuitBreaker = callable & { state, failureCount, reset }`
+
+Example [#example]
+
+```ts
+import { createCircuitBreaker } from "yieldless/breaker";
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const loadGitHubUser = createCircuitBreaker(
+  (_signal, login: string) =>
+    fetchJsonSafe<User>(`https://api.github.com/users/${login}`),
+  {
+    failureThreshold: 3,
+    cooldownMs: 30_000,
+  },
+);
+
+const [error, user] = await loadGitHubUser("octocat");
+```
+
+Behavior notes [#behavior-notes]
+
+* The breaker opens after `failureThreshold` tripping failures.
+* While open, calls return `[new CircuitOpenError(), null]`.
+* After `cooldownMs`, the next call moves the breaker to `half-open`.
+* A half-open success closes the breaker once `successThreshold` is reached.
+* A half-open failure opens it again.
+* `shouldTrip(error)` lets you ignore expected failures such as validation errors.
+* `reset()` closes the breaker and clears counts.
+
+Good [#good]
+
+Trip only on dependency failures, not user input.
+
+```ts
+const breaker = createCircuitBreaker(loadUser, {
+  failureThreshold: 3,
+  cooldownMs: 10_000,
+  shouldTrip: (error) => !(error instanceof ValidationError),
+});
+```
+
+Expose breaker state for diagnostics.
+
+```ts
+logger.info("github breaker", { state: breaker.state });
+```
+
+Avoid [#avoid]
+
+Do not use a circuit breaker for ordinary validation or authorization branches.
+
+```ts
+const guarded = createCircuitBreaker(validateUserInput, {
+  failureThreshold: 1,
+  cooldownMs: 60_000,
+});
+```
+
+Use it for unstable boundaries where failing fast reduces damage.
+
+
 # yieldless/singleflight
 
 
@@ -2523,6 +3100,87 @@ await runCommandSafe("sh", ["-c", `git -C ${repoPath} status`]);
 ```
 
 Pass the executable and args separately so Node handles argument boundaries.
+
+
+# yieldless/test
+
+
+
+`yieldless/test` contains tiny helpers for testing async code that uses promises and `AbortSignal`. They are deliberately independent from Vitest, Jest, or Node's test runner.
+
+Use these helpers to make async tests deterministic without changing application code or installing a fake runtime.
+
+Exports [#exports]
+
+* `deferred<T>(): Deferred<T>`
+* `flushMicrotasks(times): Promise<void>`
+* `createTestSignal(): TestSignal`
+* `createManualClock(start): ManualClock`
+* `type Deferred<T> = { promise, resolve, reject }`
+* `type ManualClock = { now, pending, sleep, tick, runAll }`
+* `type TestSignal = { controller, signal, abort }`
+
+Example [#example]
+
+```ts
+import { createManualClock, deferred, flushMicrotasks } from "yieldless/test";
+
+const ready = deferred<string>();
+
+ready.resolve("done");
+await expect(ready.promise).resolves.toBe("done");
+
+const clock = createManualClock();
+let settled = false;
+
+void clock.sleep(100).then(() => {
+  settled = true;
+});
+
+clock.tick(100);
+await flushMicrotasks();
+
+expect(settled).toBe(true);
+```
+
+Behavior notes [#behavior-notes]
+
+* `deferred()` exposes a promise plus its `resolve` and `reject` functions.
+* `flushMicrotasks()` awaits `Promise.resolve()` one or more times.
+* `createTestSignal()` returns a controller, signal, and convenience `abort()` method.
+* `createManualClock().sleep()` is abort-aware and resolves only when `tick()` or `runAll()` reaches its time.
+* `createManualClock()` does not patch global timers.
+
+Good [#good]
+
+Use manual clocks for code that already accepts a sleep function or clock dependency.
+
+```ts
+const clock = createManualClock();
+const running = waitForReady({ sleep: clock.sleep });
+
+clock.runAll();
+await running;
+```
+
+Use controlled signals when testing cleanup.
+
+```ts
+const testSignal = createTestSignal();
+testSignal.abort(new Error("stop"));
+```
+
+Avoid [#avoid]
+
+Do not mix the manual clock with real `setTimeout()` and expect it to control global time.
+
+```ts
+const clock = createManualClock();
+setTimeout(resolve, 100);
+clock.tick(100);
+```
+
+Use it by dependency injection, not global monkey-patching.
 
 
 # Resilient Service Flow

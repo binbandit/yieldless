@@ -1,0 +1,76 @@
+# yieldless/cache
+
+
+
+`yieldless/cache` stores successful tuple load results and shares in-flight loads for the same key. It is useful for API clients, metadata readers, schema discovery, docs search, and any expensive async read where several callers can ask for the same thing.
+
+It is intentionally small: no background worker, no global store, no runtime. The cache loads on demand, expires entries by TTL, evicts least-recently-used entries by size, and keeps errors out of the cache.
+
+Exports [#exports]
+
+* `createCache({ load, getKey, maxSize, ttlMs }): Cache`
+* `type Cache<Key, Value, E> = { get, refresh, delete, clear, has, stats, size }`
+* `type CacheStats = { hits, misses, inFlight, size }`
+* `type CacheGetOptions = { signal?: AbortSignal }`
+
+Example [#example]
+
+```ts
+import { createCache } from "yieldless/cache";
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const userCache = createCache({
+  ttlMs: 30_000,
+  maxSize: 500,
+  load: (userId: string, signal) =>
+    fetchJsonSafe<User>(`/api/users/${userId}`, { signal }),
+});
+
+const [error, user] = await userCache.get("u_123", { signal });
+```
+
+Behavior notes [#behavior-notes]
+
+* Only successful `[null, value]` results are cached.
+* Concurrent `get()` calls for the same key share the same load.
+* `refresh()` skips the stored value and starts or joins the in-flight load.
+* `delete(key)` removes cached and in-flight work for the key, aborting an in-flight load.
+* `clear()` removes all cached entries and aborts all in-flight loads.
+* `ttlMs` defaults to no expiry. `maxSize` defaults to a very large limit.
+* Reading a cached value refreshes its LRU position.
+
+Good [#good]
+
+Cache read-through data at the boundary.
+
+```ts
+const repoCache = createCache({
+  maxSize: 200,
+  ttlMs: 60_000,
+  load: (repoId: string, signal) => loadRepository(repoId, signal),
+});
+```
+
+Use `refresh()` when a user explicitly asks for fresh data.
+
+```ts
+const result = await repoCache.refresh(repoId, { signal });
+```
+
+Avoid [#avoid]
+
+Do not cache commands with side effects.
+
+```ts
+const cache = createCache({
+  load: (_id, signal) => createPullRequest(signal),
+});
+```
+
+Prefer cache keys that describe pure reads.
+
+```ts
+const cache = createCache({
+  load: (repoId, signal) => loadRepositorySummary(repoId, signal),
+});
+```

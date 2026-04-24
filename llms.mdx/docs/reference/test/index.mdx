@@ -1,0 +1,79 @@
+# yieldless/test
+
+
+
+`yieldless/test` contains tiny helpers for testing async code that uses promises and `AbortSignal`. They are deliberately independent from Vitest, Jest, or Node's test runner.
+
+Use these helpers to make async tests deterministic without changing application code or installing a fake runtime.
+
+Exports [#exports]
+
+* `deferred<T>(): Deferred<T>`
+* `flushMicrotasks(times): Promise<void>`
+* `createTestSignal(): TestSignal`
+* `createManualClock(start): ManualClock`
+* `type Deferred<T> = { promise, resolve, reject }`
+* `type ManualClock = { now, pending, sleep, tick, runAll }`
+* `type TestSignal = { controller, signal, abort }`
+
+Example [#example]
+
+```ts
+import { createManualClock, deferred, flushMicrotasks } from "yieldless/test";
+
+const ready = deferred<string>();
+
+ready.resolve("done");
+await expect(ready.promise).resolves.toBe("done");
+
+const clock = createManualClock();
+let settled = false;
+
+void clock.sleep(100).then(() => {
+  settled = true;
+});
+
+clock.tick(100);
+await flushMicrotasks();
+
+expect(settled).toBe(true);
+```
+
+Behavior notes [#behavior-notes]
+
+* `deferred()` exposes a promise plus its `resolve` and `reject` functions.
+* `flushMicrotasks()` awaits `Promise.resolve()` one or more times.
+* `createTestSignal()` returns a controller, signal, and convenience `abort()` method.
+* `createManualClock().sleep()` is abort-aware and resolves only when `tick()` or `runAll()` reaches its time.
+* `createManualClock()` does not patch global timers.
+
+Good [#good]
+
+Use manual clocks for code that already accepts a sleep function or clock dependency.
+
+```ts
+const clock = createManualClock();
+const running = waitForReady({ sleep: clock.sleep });
+
+clock.runAll();
+await running;
+```
+
+Use controlled signals when testing cleanup.
+
+```ts
+const testSignal = createTestSignal();
+testSignal.abort(new Error("stop"));
+```
+
+Avoid [#avoid]
+
+Do not mix the manual clock with real `setTimeout()` and expect it to control global time.
+
+```ts
+const clock = createManualClock();
+setTimeout(resolve, 100);
+clock.tick(100);
+```
+
+Use it by dependency injection, not global monkey-patching.
