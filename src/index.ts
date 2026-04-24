@@ -131,6 +131,13 @@ export type {
 export { parseAsyncSafe, parseSafe } from "yieldless/schema";
 
 export type {
+  SingleFlight,
+  SingleFlightOperation,
+  SingleFlightOptions,
+} from "yieldless/singleflight";
+export { singleFlight } from "yieldless/singleflight";
+
+export type {
   ErrorResponseBody,
   HonoHandlerOptions,
   HttpErrorOptions,

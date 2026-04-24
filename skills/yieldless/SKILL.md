@@ -193,6 +193,20 @@ const [error, thumbnails] = await mapLimit(
 
 Use `mapLimit` when processing a list of files, API calls, or subprocess jobs where unbounded parallelism would make the user's machine or service worse.
 
+### yieldless/singleflight
+
+Deduplicate concurrent tuple work by key. Use this when several callers may ask for the same expensive operation at once.
+
+```ts
+import { singleFlight } from "yieldless/singleflight";
+
+const loadRepository = singleFlight(
+  (signal, repoId: string) => readRepository(repoId, signal),
+);
+```
+
+Results are not cached after settlement. Use `clear` or `clearAll` to abort in-flight entries.
+
 ### yieldless/schema
 
 Adapts `safeParse()` and `parse()` validators (Zod, Valibot, etc.) into tuple results.

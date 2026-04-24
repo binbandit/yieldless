@@ -19,6 +19,7 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | `fetch.ts` | Wraps native fetch with tuple errors, timeouts, status checks, and JSON parsing. |
 | `context.ts` | Wraps `AsyncLocalStorage` and trace-span lifecycles. |
 | `all.ts` | Provides tuple-native `all()`, `race()`, and bounded `mapLimit()` combinators with shared cancellation. |
+| `singleflight.ts` | Deduplicates concurrent tuple work by key and exposes abortable in-flight entry clearing. |
 | `schema.ts` | Adapts `parse` and `safeParse` style validators into tuple results. |
 | `router.ts` | Converts tuple handlers into Hono-style JSON responses and HTTP errors. |
 | `ipc.ts` | Preserves tuple success and error payloads across Electron IPC boundaries. |

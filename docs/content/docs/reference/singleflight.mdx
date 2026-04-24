@@ -1,0 +1,54 @@
+---
+title: yieldless/singleflight
+description: Deduplicate concurrent tuple work by key.
+---
+
+`yieldless/singleflight` prevents duplicate in-flight work from stampeding the same expensive operation. Calls with the same key share one promise while it is running, then the entry is removed when it settles.
+
+This is useful for Electron preload APIs, CLIs, API clients, docs search, and cache warmers where several callers can ask for the same thing at once.
+
+## Exports
+
+- `singleFlight(operation, options): SingleFlight`
+- `type SingleFlightOperation<Args, T, E = Error> = (signal, ...args) => SafeResult<T, E> | PromiseLike<SafeResult<T, E>>`
+- `type SingleFlightOptions<Args> = { getKey?, signal? }`
+- `type SingleFlight = callable & { clear(...args), clearAll(), has(...args), size }`
+
+## Example
+
+```ts
+import { singleFlight } from "yieldless/singleflight";
+
+const loadRepository = singleFlight(
+  async (signal, repoId: string) => readRepository(repoId, signal),
+);
+
+const [first, second] = await Promise.all([
+  loadRepository("yieldless"),
+  loadRepository("yieldless"),
+]);
+```
+
+Only one `readRepository()` call runs for the duplicate key. Both callers receive the same tuple result.
+
+## Custom keys
+
+The default key is `JSON.stringify(args)`. Pass `getKey` when your arguments include values that need a stable domain key.
+
+```ts
+const loadUser = singleFlight(
+  async (signal, request: { userId: string; refresh: boolean }) =>
+    readUser(request.userId, signal),
+  {
+    getKey: (request) => request.userId,
+  },
+);
+```
+
+## Behavior notes
+
+- Results are not cached after settlement.
+- Thrown operation failures are normalized into tuple errors.
+- `clear(...args)` aborts and removes one in-flight entry.
+- `clearAll()` aborts and removes every in-flight entry.
+- A parent `signal` aborts the shared operation for every active caller.

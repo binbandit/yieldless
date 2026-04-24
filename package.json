@@ -70,6 +70,10 @@
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"
     },
+    "./singleflight": {
+      "types": "./dist/singleflight.d.ts",
+      "import": "./dist/singleflight.js"
+    },
     "./router": {
       "types": "./dist/router.d.ts",
       "import": "./dist/router.js"

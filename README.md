@@ -21,6 +21,7 @@ The next layer adds practical backend pieces on top of those primitives:
 - result combinators for success/error pipelines
 - async context storage for request-scoped data and spans
 - tuple-native parallel and bounded-work combinators
+- in-flight request deduplication
 - schema adapters that stay in tuple-land
 - route handlers that turn tuple errors into HTTP responses
 - IPC bridges that keep tuple results intact across Electron boundaries
@@ -257,6 +258,25 @@ const [error, thumbnails] = await mapLimit(
 
 If one task returns `[error, null]`, the shared signal is aborted before the utility returns.
 `mapLimit()` preserves input order while keeping only the configured number of items in flight, which is useful for API calls, file processing, and subprocess work that should not stampede a machine or service.
+
+### `yieldless/singleflight`
+
+`singleFlight` deduplicates concurrent tuple work by key without becoming a cache.
+
+```ts
+import { singleFlight } from "yieldless/singleflight";
+
+const loadRepository = singleFlight(
+  async (signal, repoId: string) => readRepository(repoId, signal),
+);
+
+const [first, second] = await Promise.all([
+  loadRepository("yieldless"),
+  loadRepository("yieldless"),
+]);
+```
+
+Only one operation runs for duplicate in-flight calls. Entries are removed after settlement, and `clear()` / `clearAll()` abort in-flight work.
 
 ### `yieldless/schema`
 
