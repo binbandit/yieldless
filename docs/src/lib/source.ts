@@ -99,8 +99,10 @@ const llmSections = [
     slug: 'recipes',
     title: 'Recipes',
     description:
-      'End-to-end examples for backend, batch, and Electron workflows.',
+      'End-to-end examples for product, backend, batch, and Electron workflows.',
     pages: [
+      'checkout-flow',
+      'customer-import',
       'resilient-service-flow',
       'bounded-batch-work',
       'repository-indexer',

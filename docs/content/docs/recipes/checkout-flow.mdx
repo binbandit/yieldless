@@ -1,0 +1,254 @@
+---
+title: Checkout Flow
+description: A customer checkout example with validation, inventory reads, payment resilience, rate limits, and receipt jobs.
+---
+
+Checkout is a good Yieldless fit because it crosses several failure-heavy boundaries without needing a framework runtime: user input, inventory reads, payment APIs, rate limits, and background receipts.
+
+This recipe keeps those boundaries explicit. The service code still reads like ordinary TypeScript, but the painful edges return tuples and accept cancellation.
+
+## The moving parts
+
+- `yieldless/router` turns the tuple service into an HTTP response
+- `yieldless/schema` validates checkout input
+- `yieldless/cache` and `yieldless/batcher` keep inventory reads efficient
+- `yieldless/limiter` protects a payment API quota
+- `yieldless/breaker` fails fast while the payment provider is unhealthy
+- `yieldless/queue` stores receipt work for a local worker
+- `yieldless/fetch` keeps remote API calls in tuple form
+
+## Checkout service
+
+```ts
+import { createBatcher } from "yieldless/batcher";
+import { CircuitOpenError, createCircuitBreaker } from "yieldless/breaker";
+import { createCache } from "yieldless/cache";
+import { safeTry } from "yieldless/error";
+import { HttpStatusError, fetchJsonSafe } from "yieldless/fetch";
+import { createRateLimiter } from "yieldless/limiter";
+import { createQueue } from "yieldless/queue";
+import { BadRequestError, honoHandler } from "yieldless/router";
+import { parseSafe } from "yieldless/schema";
+
+interface CheckoutInput {
+  readonly customerId: string;
+  readonly idempotencyKey: string;
+  readonly items: readonly {
+    readonly sku: string;
+    readonly quantity: number;
+  }[];
+}
+
+interface InventoryItem {
+  readonly priceCents: number;
+  readonly sku: string;
+  readonly stock: number;
+}
+
+interface PaymentIntent {
+  readonly id: string;
+  readonly status: "authorized" | "requires_action";
+}
+
+interface ReceiptJob {
+  readonly customerId: string;
+  readonly paymentId: string;
+}
+
+export function createCheckoutService(apiBaseUrl: string) {
+  const receiptJobs = createQueue<ReceiptJob>({ capacity: 1_000 });
+  const paymentQuota = createRateLimiter({ limit: 50, intervalMs: 60_000 });
+
+  const inventoryBatcher = createBatcher<string, InventoryItem>({
+    waitMs: 2,
+    maxBatchSize: 100,
+    loadMany: async (skus, signal) => {
+      const [error, inventory] = await fetchJsonSafe<InventoryItem[]>(
+        `${apiBaseUrl}/inventory?skus=${encodeURIComponent(skus.join(","))}`,
+        { timeoutMs: 2_000, signal },
+      );
+
+      if (error) {
+        return [error, null] as const;
+      }
+
+      const bySku = new Map(inventory.map((item) => [item.sku, item]));
+
+      return [
+        null,
+        skus.map(
+          (sku) => bySku.get(sku) ?? { sku, priceCents: 0, stock: 0 },
+        ),
+      ] as const;
+    },
+  });
+
+  const inventory = createCache<string, InventoryItem>({
+    ttlMs: 15_000,
+    maxSize: 2_000,
+    load: (sku, signal) => inventoryBatcher.load(sku, { signal }),
+  });
+
+  const createPayment = createCircuitBreaker(
+    (signal, input: { amountCents: number; idempotencyKey: string }) =>
+      fetchJsonSafe<PaymentIntent>(`${apiBaseUrl}/payments/intents`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": input.idempotencyKey,
+        },
+        body: JSON.stringify({ amountCents: input.amountCents }),
+        timeoutMs: 5_000,
+        signal,
+      }),
+    {
+      failureThreshold: 3,
+      cooldownMs: 20_000,
+      shouldTrip: (error) =>
+        !(error instanceof HttpStatusError) || error.status >= 500,
+    },
+  );
+
+  return {
+    receiptJobs,
+    async checkout(input: unknown, signal: AbortSignal) {
+      const [inputError, checkout] = parseSafe(checkoutSchema, input);
+
+      if (inputError) {
+        return [inputError, null] as const;
+      }
+
+      const loadedItems = await Promise.all(
+        checkout.items.map((item) => inventory.get(item.sku, { signal })),
+      );
+
+      const inventoryError = loadedItems.find(([error]) => error !== null)?.[0];
+
+      if (inventoryError) {
+        return [inventoryError, null] as const;
+      }
+
+      const items = loadedItems.map(([, item]) => item as InventoryItem);
+      const unavailable = checkout.items.find((requested, index) => {
+        const available = items[index]?.stock ?? 0;
+        return available < requested.quantity;
+      });
+
+      if (unavailable !== undefined) {
+        return [new BadRequestError(`${unavailable.sku} is out of stock`), null] as const;
+      }
+
+      const amountCents = checkout.items.reduce(
+        (total, item, index) =>
+          total + item.quantity * (items[index]?.priceCents ?? 0),
+        0,
+      );
+
+      const [quotaError] = await paymentQuota.takeSafe({ signal });
+
+      if (quotaError) {
+        return [quotaError, null] as const;
+      }
+
+      const [paymentError, payment] = await createPayment({
+        amountCents,
+        idempotencyKey: checkout.idempotencyKey,
+      });
+
+      if (paymentError instanceof CircuitOpenError) {
+        return [
+          new Error("Payments are temporarily unavailable. Please try again soon."),
+          null,
+        ] as const;
+      }
+
+      if (paymentError) {
+        return [paymentError, null] as const;
+      }
+
+      const [receiptError] = await receiptJobs.offer(
+        {
+          customerId: checkout.customerId,
+          paymentId: payment.id,
+        },
+        { signal },
+      );
+
+      if (receiptError) {
+        return [receiptError, null] as const;
+      }
+
+      return [
+        null,
+        {
+          paymentId: payment.id,
+          status: payment.status,
+        },
+      ] as const;
+    },
+  };
+}
+
+const checkoutService = createCheckoutService("https://api.example.com");
+
+export const postCheckout = honoHandler(
+  async (c) => {
+    const [bodyError, body] = await safeTry(c.req.json());
+
+    if (bodyError) {
+      return [new BadRequestError("Invalid checkout JSON"), null] as const;
+    }
+
+    return await checkoutService.checkout(body, c.req.raw.signal);
+  },
+  { successStatus: 201 },
+);
+```
+
+## Receipt worker
+
+```ts
+async function runReceiptWorker(signal: AbortSignal) {
+  while (!signal.aborted) {
+    const [takeError, job] = await checkoutService.receiptJobs.take({ signal });
+
+    if (takeError) {
+      return;
+    }
+
+    const [sendError] = await fetchJsonSafe("/internal/receipts/send", {
+      method: "POST",
+      body: JSON.stringify(job),
+      headers: { "content-type": "application/json" },
+      timeoutMs: 5_000,
+      signal,
+    });
+
+    if (sendError) {
+      console.error("failed to send receipt", sendError);
+    }
+  }
+}
+```
+
+## Why this is a good fit
+
+- Cart validation returns a normal HTTP validation response.
+- Inventory reads batch together and cache briefly, which helps busy product pages.
+- Payment quota is explicit before the payment call.
+- The circuit breaker stops a payment outage from becoming a retry storm.
+- Receipt delivery is queued so checkout can finish without waiting on email.
+
+## Avoid: hiding business rules behind a generic pipeline
+
+```ts
+return await checkoutRuntime.run(input, {
+  validate: true,
+  cache: true,
+  rateLimit: true,
+  payment: true,
+  queueReceipt: true,
+});
+```
+
+That hides the parts reviewers most need to see: stock checks, idempotency, payment error handling, and what happens after the customer pays.
