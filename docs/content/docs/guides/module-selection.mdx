@@ -17,6 +17,8 @@ Yieldless is easiest to adopt when you choose one small module at the boundary w
 | Connect producers and consumers | `yieldless/queue` | Bounded async queues with abortable offer/take backpressure. |
 | Broadcast in-process events | `yieldless/pubsub` | Async-iterable subscriptions with optional replay. |
 | Protect shared capacity or API quota | `yieldless/limiter` | Semaphores and rate limiters for explicit backpressure. |
+| Cache expensive async reads | `yieldless/cache` | TTL/LRU caching with shared in-flight loads. |
+| Batch nearby keyed reads | `yieldless/batcher` | DataLoader-style coalescing without another dependency. |
 | Retry transient tuple failures | `yieldless/retry` | Exponential backoff with jitter and abort-aware waits. |
 | Reuse retry or polling timing rules | `yieldless/schedule` | Composable delay and stop policies without a scheduler. |
 | Apply a time budget | `yieldless/signal` | Disposable derived deadline signals. |

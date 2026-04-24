@@ -8,6 +8,21 @@ export type {
 } from "yieldless/all";
 export { all, mapLimit, race } from "yieldless/all";
 
+export type {
+  Batcher,
+  BatcherLoadOptions,
+  BatcherOptions,
+} from "yieldless/batcher";
+export { createBatcher, MissingBatchResultError } from "yieldless/batcher";
+
+export type {
+  Cache,
+  CacheGetOptions,
+  CacheOptions,
+  CacheStats,
+} from "yieldless/cache";
+export { createCache } from "yieldless/cache";
+
 export type { SpanLike, TracerLike, YieldlessContext } from "yieldless/context";
 export { createContext, createTraceContext, withSpan } from "yieldless/context";
 

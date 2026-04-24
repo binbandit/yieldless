@@ -78,6 +78,8 @@ const llmSections = [
       'queue',
       'pubsub',
       'limiter',
+      'cache',
+      'batcher',
       'singleflight',
       'schema',
       'router',

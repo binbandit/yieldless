@@ -1,0 +1,70 @@
+---
+title: yieldless/batcher
+description: DataLoader-style keyed batching for tuple-returning async reads.
+---
+
+`yieldless/batcher` coalesces nearby `load(key)` calls into one `loadMany(keys, signal)` call. It is useful when many screens, resolvers, or workflow steps can ask for related data in the same tick.
+
+The module stays intentionally boring: it does not cache, it does not add a scheduler, and it does not require a runtime. It batches pending keys, maps results back by index, and returns tuple results to each caller.
+
+## Exports
+
+- `createBatcher({ loadMany, waitMs, maxBatchSize }): Batcher`
+- `class MissingBatchResultError extends Error`
+- `type Batcher<Key, Value, E> = { load, clear, pending }`
+- `type BatcherLoadOptions = { signal?: AbortSignal }`
+
+## Example
+
+```ts
+import { createBatcher } from "yieldless/batcher";
+
+const users = createBatcher({
+  waitMs: 1,
+  maxBatchSize: 100,
+  loadMany: (ids: readonly string[], signal) =>
+    loadUsersByIds(ids, { signal }),
+});
+
+const [error, user] = await users.load("u_123", { signal });
+```
+
+## Behavior notes
+
+- `waitMs` defaults to `0`, which batches calls queued in the same turn.
+- `maxBatchSize` flushes a batch early when enough keys are waiting.
+- `loadMany()` must return values in the same order as the input keys.
+- If `loadMany()` returns `[error, null]`, every waiting caller receives that error.
+- If a result is missing for an index, that caller receives `MissingBatchResultError`.
+- A pending `load()` can be aborted before the batch flushes.
+- `clear(reason)` resolves all pending loads with the reason.
+
+## Good
+
+Use a batcher where the backend already supports bulk reads.
+
+```ts
+const labels = createBatcher({
+  loadMany: (ids, signal) => loadLabels(ids, signal),
+});
+```
+
+Keep caching separate when you need both.
+
+```ts
+const labelCache = createCache({
+  load: (id, signal) => labels.load(id, { signal }),
+});
+```
+
+## Avoid
+
+Do not use batching to hide write side effects.
+
+```ts
+const writes = createBatcher({
+  loadMany: (inputs, signal) => updateManyRecords(inputs, signal),
+});
+```
+
+Prefer explicit write orchestration for mutations, and use `yieldless/batcher` for read-like keyed loading.

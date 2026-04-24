@@ -22,6 +22,8 @@ The suite is organized by concern rather than by fixture-heavy integration scaff
 | `timer.test.ts` | Abort-aware sleep, tuple sleep, polling stop conditions, timeout behavior, and option validation. |
 | `event.test.ts` | EventTarget and EventEmitter one-shot waits, default error rejection, abort tuple wrapping, and listener cleanup. |
 | `fetch.test.ts` | Native fetch wrappers, status errors, JSON parsing, custom status policies, and timeout propagation. |
+| `cache.test.ts` | Cache hits/misses, in-flight deduplication, TTL expiry, LRU eviction, and abortable deletion. |
+| `batcher.test.ts` | Batch coalescing, max-size flushing, shared errors, missing result errors, and abort cleanup. |
 | `singleflight.test.ts` | In-flight deduplication, custom keys, tuple error normalization, entry clearing, and parent cancellation. |
 | `adapters.test.ts` | Async context, schema adapters, router behavior, and IPC serialization. |
 | `node.test.ts` | Filesystem wrappers, subprocess execution, and task-group subprocess cancellation. |

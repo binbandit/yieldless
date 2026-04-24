@@ -74,6 +74,14 @@
       "types": "./dist/all.d.ts",
       "import": "./dist/all.js"
     },
+    "./cache": {
+      "types": "./dist/cache.d.ts",
+      "import": "./dist/cache.js"
+    },
+    "./batcher": {
+      "types": "./dist/batcher.d.ts",
+      "import": "./dist/batcher.js"
+    },
     "./schema": {
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"

@@ -21,6 +21,8 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | `fetch.ts` | Wraps native fetch with tuple errors, timeouts, status checks, and JSON parsing. |
 | `context.ts` | Wraps `AsyncLocalStorage` and trace-span lifecycles. |
 | `all.ts` | Provides tuple-native `all()`, `race()`, and bounded `mapLimit()` combinators with shared cancellation. |
+| `cache.ts` | Implements TTL/LRU tuple caches with in-flight load sharing and abortable refresh/delete. |
+| `batcher.ts` | Coalesces nearby keyed loads into tuple-returning batch operations. |
 | `iterable.ts` | Processes sync/async iterables with tuple collection, sequential workers, and bounded mapping. |
 | `queue.ts` | Implements a bounded async queue with abortable offer/take operations and async iteration. |
 | `pubsub.ts` | Provides in-process broadcast subscriptions with optional replay and clean close behavior. |
