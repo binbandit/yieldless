@@ -7,9 +7,10 @@ The fastest way to understand Yieldless is to wire the core pieces together:
 
 1. `yieldless/error` to keep failures in tuple form
 2. `yieldless/result` when tuple branches need light composition
-3. `yieldless/task`, `yieldless/all`, and `yieldless/iterable` to fan work out and cancel siblings cleanly
-4. `yieldless/retry`, `yieldless/signal`, and `yieldless/timer` for resilient async boundaries
-5. Boundary adapters like `yieldless/fetch`, `yieldless/schema`, `yieldless/router`, `yieldless/ipc`, `yieldless/node`, and `yieldless/env`
+3. `yieldless/task`, `yieldless/all`, `yieldless/iterable`, `yieldless/queue`, `yieldless/pubsub`, and `yieldless/limiter` to fan work out, hand it off, and control pressure
+4. `yieldless/retry`, `yieldless/schedule`, `yieldless/signal`, `yieldless/timer`, and `yieldless/breaker` for resilient async boundaries
+5. `yieldless/cache`, `yieldless/batcher`, and `yieldless/singleflight` for repeated, keyed, and duplicate work
+6. Boundary adapters like `yieldless/fetch`, `yieldless/schema`, `yieldless/router`, `yieldless/ipc`, `yieldless/node`, and `yieldless/env`
 
 ## Install
 
@@ -173,7 +174,7 @@ const [jobError, job] = await poll(
 );
 ```
 
-The package ships adapters for common backend boundaries:
+The package ships helpers for common backend boundaries and production pressure:
 
 - `yieldless/env` validates startup configuration
 - `yieldless/fetch` wraps HTTP status, JSON parsing, and deadlines
@@ -182,7 +183,14 @@ The package ships adapters for common backend boundaries:
 - `yieldless/ipc` preserves tuple results across Electron IPC
 - `yieldless/node` wraps filesystem and child-process work
 - `yieldless/event` waits for one event with cleanup and abort support
+- `yieldless/schedule` builds reusable retry and repeat policies
+- `yieldless/limiter` protects shared capacity with semaphores and rate limits
+- `yieldless/queue` and `yieldless/pubsub` coordinate in-process workers and subscribers
+- `yieldless/cache` keeps successful read-through loads fresh for a TTL
+- `yieldless/batcher` collapses nearby keyed reads into ordered batches
+- `yieldless/breaker` backs off dependencies that are already failing
 - `yieldless/singleflight` deduplicates duplicate in-flight work
+- `yieldless/test` makes promises, clocks, and abort signals deterministic in tests
 
 ## A full request flow
 

@@ -1,17 +1,20 @@
-import Link from 'next/link';
-import { codeToHtml } from 'shiki';
 import {
   ArrowRight,
-  Box,
+  Boxes,
+  Database,
+  Gauge,
   GitBranch,
   Layers,
-  RefreshCw,
+  ListTodo,
   Route,
   Shield,
+  ShieldAlert,
   Sparkles,
   Terminal,
   Zap,
-} from 'lucide-react';
+} from "lucide-react";
+import Link from "next/link";
+import { codeToHtml } from "shiki";
 
 const heroCode = `import { safeTry } from "yieldless/error";
 import { runTaskGroup } from "yieldless/task";
@@ -31,65 +34,94 @@ return await runTaskGroup(async (group) => {
 
 const modules = [
   {
-    name: 'error',
-    desc: 'Tuple-based error handling',
+    name: "error",
+    desc: "Tuple-based error handling",
     icon: Shield,
-    href: '/docs/reference/error',
+    href: "/docs/reference/error",
   },
   {
-    name: 'task',
-    desc: 'Structured concurrency',
+    name: "task",
+    desc: "Structured concurrency",
     icon: Layers,
-    href: '/docs/reference/task',
+    href: "/docs/reference/task",
   },
   {
-    name: 'resource',
-    desc: 'Async disposal lifecycle',
-    icon: Box,
-    href: '/docs/reference/resource',
+    name: "queue",
+    desc: "Backpressure-aware handoff",
+    icon: ListTodo,
+    href: "/docs/reference/queue",
   },
   {
-    name: 'retry',
-    desc: 'Backoff with abort awareness',
-    icon: RefreshCw,
-    href: '/docs/reference/retry',
+    name: "limiter",
+    desc: "Semaphores and rate limits",
+    icon: Gauge,
+    href: "/docs/reference/limiter",
   },
   {
-    name: 'router',
-    desc: 'Tuple HTTP route handlers',
+    name: "cache",
+    desc: "TTL/LRU read-through cache",
+    icon: Database,
+    href: "/docs/reference/cache",
+  },
+  {
+    name: "batcher",
+    desc: "DataLoader-style keyed batches",
+    icon: Boxes,
+    href: "/docs/reference/batcher",
+  },
+  {
+    name: "breaker",
+    desc: "Circuit breaking for dependencies",
+    icon: ShieldAlert,
+    href: "/docs/reference/breaker",
+  },
+  {
+    name: "router",
+    desc: "Tuple HTTP route handlers",
     icon: Route,
-    href: '/docs/reference/router',
+    href: "/docs/reference/router",
   },
   {
-    name: 'ipc',
-    desc: 'Typed Electron IPC bridge',
+    name: "ipc",
+    desc: "Typed Electron IPC bridge",
     icon: GitBranch,
-    href: '/docs/reference/ipc',
+    href: "/docs/reference/ipc",
   },
+];
+
+const extraModules = [
+  { name: "result", href: "/docs/reference/result" },
+  { name: "resource", href: "/docs/reference/resource" },
+  { name: "schedule", href: "/docs/reference/schedule" },
+  { name: "pubsub", href: "/docs/reference/pubsub" },
+  { name: "singleflight", href: "/docs/reference/singleflight" },
+  { name: "schema", href: "/docs/reference/schema" },
+  { name: "node", href: "/docs/reference/node" },
+  { name: "test", href: "/docs/reference/test" },
 ];
 
 const principles = [
   {
-    title: 'Native control flow',
-    desc: 'Built on Promise, AbortController, AsyncLocalStorage, and Symbol.asyncDispose. No scheduler, no runtime, no magic.',
+    title: "Native control flow",
+    desc: "Built on Promise, AbortController, AsyncLocalStorage, and Symbol.asyncDispose. No scheduler, no runtime, no magic.",
     icon: Zap,
   },
   {
-    title: 'Visible failure paths',
-    desc: 'If something can fail, the tuple is right there. No hidden exception channel unless you choose to rethrow.',
+    title: "Visible failure paths",
+    desc: "If something can fail, the tuple is right there. No hidden exception channel unless you choose to rethrow.",
     icon: Sparkles,
   },
   {
-    title: 'Incremental adoption',
-    desc: 'Use one module at a time. No framework wrapper, no global runtime, no all-or-nothing commitment.',
+    title: "Incremental adoption",
+    desc: "Use one module at a time. No framework wrapper, no global runtime, no all-or-nothing commitment.",
     icon: Terminal,
   },
 ];
 
 export default async function HomePage() {
   const highlightedCode = await codeToHtml(heroCode, {
-    lang: 'typescript',
-    theme: 'github-dark',
+    lang: "typescript",
+    theme: "github-dark",
   });
   return (
     <div className="relative">
@@ -106,7 +138,7 @@ export default async function HomePage() {
             </div>
 
             <h1 className="max-w-3xl font-display text-[clamp(2.75rem,6.5vw,5.5rem)] leading-[0.95] tracking-[-0.03em] text-fd-foreground">
-              Fewer moving parts.{' '}
+              Fewer moving parts.{" "}
               <span className="text-fd-muted-foreground italic">
                 Better async code.
               </span>
@@ -114,7 +146,7 @@ export default async function HomePage() {
 
             <p
               className="animate-fade-up mt-6 max-w-xl text-[1.0625rem] leading-relaxed text-fd-muted-foreground"
-              style={{ animationDelay: '80ms' }}
+              style={{ animationDelay: "80ms" }}
             >
               Tuple-based errors, structured concurrency, and resource
               management for TypeScript — built on the primitives you already
@@ -124,7 +156,7 @@ export default async function HomePage() {
 
           <div
             className="animate-fade-up mt-8 flex flex-wrap items-center gap-3"
-            style={{ animationDelay: '140ms' }}
+            style={{ animationDelay: "140ms" }}
           >
             <Link
               href="/docs/guides/quickstart"
@@ -147,7 +179,7 @@ export default async function HomePage() {
           {/* ─── Code showcase ─────────────────────── */}
           <div
             className="animate-fade-up mt-16"
-            style={{ animationDelay: '220ms' }}
+            style={{ animationDelay: "220ms" }}
           >
             <div className="code-window max-w-3xl">
               <div className="code-window-bar">
@@ -212,12 +244,16 @@ export default async function HomePage() {
             Pick what you need
           </h2>
           <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-fd-muted-foreground">
-            Every module works independently. Import one, or compose several —
-            they all return the same{' '}
+            Every module works independently. Import one, or compose several
+            around the same{" "}
             <code className="rounded border border-fd-border bg-fd-muted px-1.5 py-0.5 text-[13px]">
               [error, value]
-            </code>{' '}
-            shape.
+            </code>{" "}
+            and{" "}
+            <code className="rounded border border-fd-border bg-fd-muted px-1.5 py-0.5 text-[13px]">
+              AbortSignal
+            </code>{" "}
+            conventions.
           </p>
         </div>
 
@@ -244,41 +280,22 @@ export default async function HomePage() {
         </div>
 
         <p className="mt-6 text-[13px] text-fd-muted-foreground">
-          Plus{' '}
-          <Link
-            href="/docs/reference/di"
-            className="underline underline-offset-2 hover:text-fd-foreground"
-          >
-            di
-          </Link>
-          ,{' '}
-          <Link
-            href="/docs/reference/context"
-            className="underline underline-offset-2 hover:text-fd-foreground"
-          >
-            context
-          </Link>
-          ,{' '}
-          <Link
-            href="/docs/reference/all"
-            className="underline underline-offset-2 hover:text-fd-foreground"
-          >
-            all
-          </Link>
-          ,{' '}
-          <Link
-            href="/docs/reference/schema"
-            className="underline underline-offset-2 hover:text-fd-foreground"
-          >
-            schema
-          </Link>
-          , and{' '}
-          <Link
-            href="/docs/reference/node"
-            className="underline underline-offset-2 hover:text-fd-foreground"
-          >
-            node
-          </Link>
+          Plus{" "}
+          {extraModules.map((module, index) => (
+            <span key={module.name}>
+              {index === 0
+                ? ""
+                : index === extraModules.length - 1
+                  ? ", and "
+                  : ", "}
+              <Link
+                href={module.href}
+                className="underline underline-offset-2 hover:text-fd-foreground"
+              >
+                {module.name}
+              </Link>
+            </span>
+          ))}
           .
         </p>
       </section>
@@ -289,9 +306,9 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid grid-cols-3 divide-x divide-fd-border rounded-xl border border-fd-border bg-fd-card">
           {[
-            { value: '11', label: 'Modules' },
-            { value: '0', label: 'Dependencies' },
-            { value: 'TS 5.5+', label: 'Baseline' },
+            { value: "27", label: "Modules" },
+            { value: "0", label: "Dependencies" },
+            { value: "TS 5.5+", label: "Baseline" },
           ].map((s) => (
             <div key={s.label} className="px-6 py-6 text-center">
               <div className="text-2xl font-bold tracking-tight text-fd-foreground md:text-3xl">
