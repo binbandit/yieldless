@@ -24,9 +24,11 @@ The suite is organized by concern rather than by fixture-heavy integration scaff
 | `fetch.test.ts` | Native fetch wrappers, status errors, JSON parsing, custom status policies, and timeout propagation. |
 | `cache.test.ts` | Cache hits/misses, in-flight deduplication, TTL expiry, LRU eviction, and abortable deletion. |
 | `batcher.test.ts` | Batch coalescing, max-size flushing, shared errors, missing result errors, and abort cleanup. |
+| `breaker.test.ts` | Circuit breaker state transitions, trip filters, open rejection, half-open recovery, and reset behavior. |
 | `singleflight.test.ts` | In-flight deduplication, custom keys, tuple error normalization, entry clearing, and parent cancellation. |
 | `adapters.test.ts` | Async context, schema adapters, router behavior, and IPC serialization. |
 | `node.test.ts` | Filesystem wrappers, subprocess execution, and task-group subprocess cancellation. |
+| `test.test.ts` | Deferred promise helpers, microtask flushing, controllable abort signals, and manual clock sleeps. |
 
 ## Data And Control Flow
 1. Each test file imports the public module surface through package subpaths, not local internals.

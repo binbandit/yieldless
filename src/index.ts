@@ -16,6 +16,14 @@ export type {
 export { createBatcher, MissingBatchResultError } from "yieldless/batcher";
 
 export type {
+  CircuitBreaker,
+  CircuitBreakerOperation,
+  CircuitBreakerOptions,
+  CircuitBreakerState,
+} from "yieldless/breaker";
+export { CircuitOpenError, createCircuitBreaker } from "yieldless/breaker";
+
+export type {
   Cache,
   CacheGetOptions,
   CacheOptions,
@@ -244,3 +252,11 @@ export {
 
 export type { TaskFactory, TaskGroup, TaskGroupOptions } from "yieldless/task";
 export { runTaskGroup } from "yieldless/task";
+
+export type { Deferred, ManualClock, ManualClockSleepOptions, TestSignal } from "yieldless/test";
+export {
+  createManualClock,
+  createTestSignal,
+  deferred,
+  flushMicrotasks,
+} from "yieldless/test";

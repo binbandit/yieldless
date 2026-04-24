@@ -80,11 +80,13 @@ const llmSections = [
       'limiter',
       'cache',
       'batcher',
+      'breaker',
       'singleflight',
       'schema',
       'router',
       'ipc',
       'node',
+      'test',
     ],
   },
   {

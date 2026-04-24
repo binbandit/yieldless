@@ -23,6 +23,7 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | `all.ts` | Provides tuple-native `all()`, `race()`, and bounded `mapLimit()` combinators with shared cancellation. |
 | `cache.ts` | Implements TTL/LRU tuple caches with in-flight load sharing and abortable refresh/delete. |
 | `batcher.ts` | Coalesces nearby keyed loads into tuple-returning batch operations. |
+| `breaker.ts` | Wraps tuple operations with a small circuit breaker for flaky dependencies. |
 | `iterable.ts` | Processes sync/async iterables with tuple collection, sequential workers, and bounded mapping. |
 | `queue.ts` | Implements a bounded async queue with abortable offer/take operations and async iteration. |
 | `pubsub.ts` | Provides in-process broadcast subscriptions with optional replay and clean close behavior. |
@@ -33,6 +34,7 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | `router.ts` | Converts tuple handlers into Hono-style JSON responses and HTTP errors. |
 | `ipc.ts` | Preserves tuple success and error payloads across Electron IPC boundaries. |
 | `node.ts` | Wraps common filesystem and child-process calls in tuple-returning adapters. |
+| `test.ts` | Provides deferred promises, microtask flushing, controllable signals, and a manual clock for tests. |
 | `index.ts` | Re-exports types and functions for the top-level package import. |
 
 ## Data And Control Flow

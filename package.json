@@ -82,6 +82,10 @@
       "types": "./dist/batcher.d.ts",
       "import": "./dist/batcher.js"
     },
+    "./breaker": {
+      "types": "./dist/breaker.d.ts",
+      "import": "./dist/breaker.js"
+    },
     "./schema": {
       "types": "./dist/schema.d.ts",
       "import": "./dist/schema.js"
@@ -121,6 +125,10 @@
     "./node": {
       "types": "./dist/node.d.ts",
       "import": "./dist/node.js"
+    },
+    "./test": {
+      "types": "./dist/test.d.ts",
+      "import": "./dist/test.js"
     }
   },
   "scripts": {

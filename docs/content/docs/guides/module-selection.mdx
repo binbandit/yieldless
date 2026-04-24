@@ -19,6 +19,7 @@ Yieldless is easiest to adopt when you choose one small module at the boundary w
 | Protect shared capacity or API quota | `yieldless/limiter` | Semaphores and rate limiters for explicit backpressure. |
 | Cache expensive async reads | `yieldless/cache` | TTL/LRU caching with shared in-flight loads. |
 | Batch nearby keyed reads | `yieldless/batcher` | DataLoader-style coalescing without another dependency. |
+| Guard flaky dependencies | `yieldless/breaker` | Circuit breaking for repeated tuple failures. |
 | Retry transient tuple failures | `yieldless/retry` | Exponential backoff with jitter and abort-aware waits. |
 | Reuse retry or polling timing rules | `yieldless/schedule` | Composable delay and stop policies without a scheduler. |
 | Apply a time budget | `yieldless/signal` | Disposable derived deadline signals. |
@@ -34,6 +35,7 @@ Yieldless is easiest to adopt when you choose one small module at the boundary w
 | Scope cleanup | `yieldless/resource` | Native `await using` for acquire/release pairs. |
 | Bind stable dependencies | `yieldless/di` | Reader-like dependency binding with plain functions. |
 | Carry request metadata | `yieldless/context` | `AsyncLocalStorage` for request-scoped values and spans. |
+| Test async helpers | `yieldless/test` | Deferred promises, manual clocks, and controlled abort signals. |
 
 ## Good adoption path
 
