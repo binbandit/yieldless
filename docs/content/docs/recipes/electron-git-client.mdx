@@ -23,13 +23,14 @@ type GitContract = {
 ## Main-process implementation
 
 ```ts
-import { createIpcMain } from "yieldless/ipc";
+import { createAbortableIpcMain } from "yieldless/ipc";
 import { runTaskGroup } from "yieldless/task";
 import { runCommandSafe } from "yieldless/node";
 
-const ipc = createIpcMain<GitContract>(ipcMain);
+const ipc = createAbortableIpcMain<GitContract>(ipcMain);
+const windowLifecycle = new AbortController();
 
-ipc.handle("cloneRepository", async (_event, url, directory) => {
+ipc.handle("cloneRepository", async (_event, requestSignal, url, directory) => {
   return await runTaskGroup(async (_group, signal) => {
     const [cloneError] = await runCommandSafe(
       "git",
@@ -42,6 +43,8 @@ ipc.handle("cloneRepository", async (_event, url, directory) => {
     }
 
     return [null, { path: directory }];
+  }, {
+    signal: AbortSignal.any([windowLifecycle.signal, requestSignal]),
   });
 });
 ```
@@ -51,11 +54,11 @@ If the window is torn down or a parent task group is canceled, the subprocess is
 ## Preload bridge
 
 ```ts
-import { createIpcBridge, createIpcRenderer } from "yieldless/ipc";
+import { createAbortableIpcBridge, createAbortableIpcRenderer } from "yieldless/ipc";
 
-const client = createIpcRenderer<GitContract>(ipcRenderer);
+const client = createAbortableIpcRenderer<GitContract>(ipcRenderer);
 
-export const gitBridge = createIpcBridge(client, [
+export const gitBridge = createAbortableIpcBridge(client, [
   "cloneRepository",
   "getStatus",
 ] as const);
@@ -64,7 +67,9 @@ export const gitBridge = createIpcBridge(client, [
 ## Renderer usage
 
 ```ts
-const [error, result] = await window.gitBridge.cloneRepository(
+const controller = new AbortController();
+const [error, result] = await window.gitBridge.withSignal.cloneRepository(
+  controller.signal,
   "git@github.com:binbandit/yieldless.git",
   "/tmp/yieldless",
 );

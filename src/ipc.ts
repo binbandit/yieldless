@@ -42,6 +42,12 @@ export type IpcHandler<Procedure, Event> = (
   ...args: ProcedureArgs<Procedure>
 ) => PromiseLike<IpcResult<Procedure>> | IpcResult<Procedure>;
 
+export type AbortableIpcHandler<Procedure, Event> = (
+  event: Event,
+  signal: AbortSignal,
+  ...args: ProcedureArgs<Procedure>
+) => PromiseLike<IpcResult<Procedure>> | IpcResult<Procedure>;
+
 export type IpcClient<Contract extends IpcContract> = {
   invoke<Channel extends keyof Contract & string>(
     channel: Channel,
@@ -49,11 +55,32 @@ export type IpcClient<Contract extends IpcContract> = {
   ): Promise<IpcResult<Contract[Channel]>>;
 };
 
+export interface AbortableIpcClient<Contract extends IpcContract>
+  extends IpcClient<Contract> {
+  invokeWithSignal<Channel extends keyof Contract & string>(
+    signal: AbortSignal,
+    channel: Channel,
+    ...args: ProcedureArgs<Contract[Channel]>
+  ): Promise<IpcResult<Contract[Channel]>>;
+}
+
 export type IpcBridge<Contract extends IpcContract> = {
   [Channel in keyof Contract]: (
     ...args: ProcedureArgs<Contract[Channel]>
   ) => Promise<IpcResult<Contract[Channel]>>;
 };
+
+export type AbortSignalIpcBridge<Contract extends IpcContract> = {
+  [Channel in keyof Contract]: (
+    signal: AbortSignal,
+    ...args: ProcedureArgs<Contract[Channel]>
+  ) => Promise<IpcResult<Contract[Channel]>>;
+};
+
+export type AbortableIpcBridge<Contract extends IpcContract> =
+  IpcBridge<Contract> & {
+    readonly withSignal: AbortSignalIpcBridge<Contract>;
+  };
 
 export interface IpcMainLike<Event = unknown> {
   handle(
@@ -74,6 +101,26 @@ export interface IpcServer<Contract extends IpcContract> {
   ): void;
   removeHandler<Channel extends keyof Contract & string>(channel: Channel): void;
 }
+
+export interface AbortableIpcServer<Contract extends IpcContract> {
+  handle<Channel extends keyof Contract & string>(
+    channel: Channel,
+    handler: AbortableIpcHandler<Contract[Channel], unknown>,
+  ): void;
+  removeHandler<Channel extends keyof Contract & string>(channel: Channel): void;
+}
+
+interface AbortableInvokePayload {
+  readonly requestId: string;
+  readonly args: readonly unknown[];
+}
+
+interface AbortableCancelPayload {
+  readonly requestId: string;
+}
+
+const abortChannelSuffix = "::yieldless:abort";
+let nextAbortableRequestId = 0;
 
 function buildSerializedIpcError(
   name: string,
@@ -122,6 +169,56 @@ function getObjectRecord(value: unknown): Record<string, unknown> | null {
   }
 
   return value as Record<string, unknown>;
+}
+
+function createAbortReason(signal: AbortSignal): unknown {
+  if ("reason" in signal && signal.reason !== undefined) {
+    return signal.reason;
+  }
+
+  return new DOMException("This operation was aborted.", "AbortError");
+}
+
+function getAbortChannel(channel: string): string {
+  return `${channel}${abortChannelSuffix}`;
+}
+
+function createAbortableRequestId(channel: string): string {
+  nextAbortableRequestId += 1;
+  return `${channel}:${String(nextAbortableRequestId)}`;
+}
+
+function parseAbortableInvokePayload(
+  payload: unknown,
+): AbortableInvokePayload | null {
+  const record = getObjectRecord(payload);
+
+  if (
+    record === null ||
+    typeof record.requestId !== "string" ||
+    !Array.isArray(record.args)
+  ) {
+    return null;
+  }
+
+  return {
+    requestId: record.requestId,
+    args: record.args,
+  };
+}
+
+function parseAbortableCancelPayload(
+  payload: unknown,
+): AbortableCancelPayload | null {
+  const record = getObjectRecord(payload);
+
+  if (record === null || typeof record.requestId !== "string") {
+    return null;
+  }
+
+  return {
+    requestId: record.requestId,
+  };
 }
 
 /**
@@ -287,6 +384,190 @@ export function createIpcRenderer<Contract extends IpcContract>(
 }
 
 /**
+ * Wraps Electron IPC with tuple-aware handlers that can be canceled from the
+ * renderer through an AbortSignal-aware side channel.
+ */
+export function createAbortableIpcMain<
+  Contract extends IpcContract,
+  Event = unknown,
+>(
+  ipcMain: IpcMainLike<Event>,
+): AbortableIpcServer<Contract> {
+  const activeRequests = new Map<string, Map<string, AbortController>>();
+
+  return {
+    handle<Channel extends keyof Contract & string>(
+      channel: Channel,
+      handler: AbortableIpcHandler<Contract[Channel], Event>,
+    ): void {
+      const channelRequests = new Map<string, AbortController>();
+      activeRequests.set(channel, channelRequests);
+
+      ipcMain.handle(
+        channel,
+        async (
+          event: Event,
+          rawPayload: unknown,
+        ): Promise<SafeResult<ProcedureData<Contract[Channel]>, SerializedIpcError>> => {
+          const payload = parseAbortableInvokePayload(rawPayload);
+
+          if (payload === null) {
+            return [
+              serializeIpcError(new Error("Invalid abortable IPC request payload.")),
+              null,
+            ];
+          }
+
+          const controller = new AbortController();
+          channelRequests.set(payload.requestId, controller);
+
+          try {
+            const args = payload.args as ProcedureArgs<Contract[Channel]>;
+            const result = await handler(event, controller.signal, ...args);
+
+            if (result[0] !== null) {
+              return [serializeIpcError(result[0]), null];
+            }
+
+            return result;
+          } catch (error: unknown) {
+            return [serializeIpcError(error), null];
+          } finally {
+            channelRequests.delete(payload.requestId);
+          }
+        },
+      );
+
+      ipcMain.handle(
+        getAbortChannel(channel),
+        async (_event: Event, rawPayload: unknown): Promise<null> => {
+          const payload = parseAbortableCancelPayload(rawPayload);
+
+          if (payload !== null) {
+            channelRequests
+              .get(payload.requestId)
+              ?.abort(new DOMException("IPC request canceled.", "AbortError"));
+          }
+
+          return null;
+        },
+      );
+    },
+
+    removeHandler<Channel extends keyof Contract & string>(
+      channel: Channel,
+    ): void {
+      const channelRequests = activeRequests.get(channel);
+
+      if (channelRequests !== undefined) {
+        for (const controller of channelRequests.values()) {
+          controller.abort(new DOMException("IPC handler removed.", "AbortError"));
+        }
+
+        channelRequests.clear();
+        activeRequests.delete(channel);
+      }
+
+      ipcMain.removeHandler(channel);
+      ipcMain.removeHandler(getAbortChannel(channel));
+    },
+  };
+}
+
+/**
+ * Wraps Electron IPC with client-side AbortSignal support. If the signal
+ * aborts, the renderer resolves immediately with an abort tuple and notifies
+ * the main process to abort the in-flight request.
+ */
+export function createAbortableIpcRenderer<Contract extends IpcContract>(
+  ipcRenderer: IpcRendererLike,
+): AbortableIpcClient<Contract> {
+  const invokeRaw = ipcRenderer.invoke.bind(ipcRenderer) as (
+    channel: string,
+    ...args: unknown[]
+  ) => Promise<unknown>;
+
+  const invokeInternal = async <Channel extends keyof Contract & string>(
+    channel: Channel,
+    args: ProcedureArgs<Contract[Channel]>,
+    signal?: AbortSignal,
+  ): Promise<IpcResult<Contract[Channel]>> => {
+    if (signal?.aborted) {
+      return [createAbortReason(signal) as ProcedureError<Contract[Channel]>, null];
+    }
+
+    const requestId = createAbortableRequestId(channel);
+    const request = invokeRaw(channel, {
+      requestId,
+      args: args as readonly unknown[],
+    }).then((payload) =>
+      deserializeIpcResult<
+        ProcedureData<Contract[Channel]>,
+        ProcedureError<Contract[Channel]>
+      >(payload),
+    );
+
+    if (signal === undefined) {
+      return await request;
+    }
+
+    void request.catch((): void => undefined);
+
+    return await new Promise<IpcResult<Contract[Channel]>>((resolve, reject) => {
+      const cleanup = (): void => {
+        signal.removeEventListener("abort", onAbort);
+      };
+
+      const onAbort = (): void => {
+        cleanup();
+        void invokeRaw(getAbortChannel(channel), { requestId }).catch(
+          (): void => undefined,
+        );
+        resolve([
+          createAbortReason(signal) as ProcedureError<Contract[Channel]>,
+          null,
+        ]);
+      };
+
+      signal.addEventListener("abort", onAbort, { once: true });
+
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+
+      request.then(
+        (result) => {
+          cleanup();
+          resolve(result);
+        },
+        (error: unknown) => {
+          cleanup();
+          reject(error);
+        },
+      );
+    });
+  };
+
+  return {
+    async invoke<Channel extends keyof Contract & string>(
+      channel: Channel,
+      ...args: ProcedureArgs<Contract[Channel]>
+    ): Promise<IpcResult<Contract[Channel]>> {
+      return await invokeInternal(channel, args);
+    },
+
+    async invokeWithSignal<Channel extends keyof Contract & string>(
+      signal: AbortSignal,
+      channel: Channel,
+      ...args: ProcedureArgs<Contract[Channel]>
+    ): Promise<IpcResult<Contract[Channel]>> {
+      return await invokeInternal(channel, args, signal);
+    },
+  };
+}
+
+/**
  * Creates a preload-friendly object with one method per allowed channel.
  */
 export function createIpcBridge<
@@ -312,4 +593,45 @@ export function createIpcBridge<
   }
 
   return bridge as Pick<IpcBridge<Contract>, Channels[number]>;
+}
+
+/**
+ * Creates a preload-friendly bridge that supports both normal IPC calls and an
+ * explicit `withSignal` path for cancelable requests.
+ */
+export function createAbortableIpcBridge<
+  Contract extends IpcContract,
+  Channels extends readonly (keyof Contract & string)[],
+>(
+  client: AbortableIpcClient<Contract>,
+  channels: Channels,
+): Pick<IpcBridge<Contract>, Channels[number]> & {
+  readonly withSignal: Pick<AbortSignalIpcBridge<Contract>, Channels[number]>;
+} {
+  const bridge: Partial<IpcBridge<Contract>> = {};
+  const withSignal: Partial<AbortSignalIpcBridge<Contract>> = {};
+  const invokeRaw = client.invoke as (
+    channel: string,
+    ...args: unknown[]
+  ) => Promise<unknown>;
+  const invokeWithSignalRaw = client.invokeWithSignal as (
+    signal: AbortSignal,
+    channel: string,
+    ...args: unknown[]
+  ) => Promise<unknown>;
+
+  for (const channel of channels) {
+    bridge[channel] = ((...args: readonly unknown[]) =>
+      invokeRaw(channel, ...args)) as IpcBridge<Contract>[typeof channel];
+    withSignal[channel] = ((signal: AbortSignal, ...args: readonly unknown[]) =>
+      invokeWithSignalRaw(signal, channel, ...args)) as AbortSignalIpcBridge<
+      Contract
+    >[typeof channel];
+  }
+
+  return {
+    ...(bridge as Pick<IpcBridge<Contract>, Channels[number]>),
+    withSignal:
+      withSignal as Pick<AbortSignalIpcBridge<Contract>, Channels[number]>,
+  };
 }

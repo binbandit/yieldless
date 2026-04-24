@@ -8,34 +8,42 @@ description: Tuple-based error handling primitives.
 ## Exports
 
 - `type SafeResult<T, E = Error> = [E, null] | [null, T]`
+- `ok(value): SafeResult<T, never>`
+- `err(error): SafeResult<never, E>`
 - `safeTry(promise): Promise<SafeResult<T>>`
 - `safeTrySync(fn): SafeResult<T>`
+- `match(result, { ok, err }): Return`
 - `unwrap(result): T`
 
 ## Typical use
 
 ```ts
-import { safeTry, safeTrySync, unwrap } from "yieldless/error";
+import { err, match, ok, safeTry, safeTrySync, unwrap } from "yieldless/error";
 
 const [readError, body] = await safeTry(readFile("package.json", "utf8"));
 if (readError) {
-  return [readError, null] as const;
+  return err(readError);
 }
 
 const parsed = safeTrySync(() => JSON.parse(body));
 const value = unwrap(parsed);
+const state = match(ok(value), {
+  ok: (data) => ({ kind: "ready", data }),
+  err: (error) => ({ kind: "error", message: String(error) }),
+});
 ```
 
 ## When to use it
 
 - Wrapping filesystem, HTTP, database, or subprocess calls
 - Converting parse and validation failures into explicit branches
-- Leaving framework boundaries as tuples until the last possible moment
+- Leaving framework boundaries as tuples until the last possible moment, then folding them with `match()`
 
 ## Rules of thumb
 
 - Prefer `safeTry()` at the boundary, not around every individual expression.
-- Keep the tuple local. Once you have the success value, use the value.
+- Use `ok()` and `err()` when returning tuples so the intent reads clearly in application code.
+- Keep the tuple local. Once you have the success value, use the value or fold it with `match()`.
 - Use `unwrap()` only where a thrown exception is genuinely required.
 
 ## Caveat

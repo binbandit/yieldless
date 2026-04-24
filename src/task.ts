@@ -5,6 +5,10 @@ export interface TaskGroup {
   spawn<T>(task: TaskFactory<T>): Promise<T>;
 }
 
+export interface TaskGroupOptions {
+  readonly signal?: AbortSignal;
+}
+
 function createAbortReason(signal: AbortSignal): unknown {
   if ("reason" in signal) {
     return signal.reason;
@@ -24,18 +28,44 @@ function throwIfAborted(signal: AbortSignal): void {
   }
 }
 
+function linkAbortSignal(
+  signal: AbortSignal | undefined,
+  controller: AbortController,
+): () => void {
+  if (signal === undefined) {
+    return (): void => undefined;
+  }
+
+  if (signal.aborted) {
+    controller.abort(createAbortReason(signal));
+    return (): void => undefined;
+  }
+
+  const onAbort = (): void => {
+    controller.abort(createAbortReason(signal));
+  };
+
+  signal.addEventListener("abort", onAbort, { once: true });
+
+  return (): void => {
+    signal.removeEventListener("abort", onAbort);
+  };
+}
+
 class TaskGroupController implements TaskGroup {
   readonly signal: AbortSignal;
 
   #controller: AbortController;
+  #cleanupAbortLink: () => void;
   #tasks: Set<Promise<unknown>>;
   #closed: boolean;
   #hasError: boolean;
   #error: unknown;
 
-  constructor() {
+  constructor(options: TaskGroupOptions = {}) {
     this.#controller = new AbortController();
     this.signal = this.#controller.signal;
+    this.#cleanupAbortLink = linkAbortSignal(options.signal, this.#controller);
     this.#tasks = new Set<Promise<unknown>>();
     this.#closed = false;
     this.#hasError = false;
@@ -92,6 +122,10 @@ class TaskGroupController implements TaskGroup {
     this.#closed = true;
   }
 
+  cleanup(): void {
+    this.#cleanupAbortLink();
+  }
+
   async waitForChildren(): Promise<void> {
     while (this.#tasks.size > 0) {
       await Promise.allSettled(Array.from(this.#tasks));
@@ -121,12 +155,14 @@ class TaskGroupController implements TaskGroup {
  */
 export async function runTaskGroup<T>(
   operation: (group: TaskGroup, signal: AbortSignal) => PromiseLike<T> | T,
+  options: TaskGroupOptions = {},
 ): Promise<T> {
-  const group: TaskGroupController = new TaskGroupController();
+  const group: TaskGroupController = new TaskGroupController(options);
   let didComplete: boolean = false;
   let result: T | undefined;
 
   try {
+    throwIfAborted(group.signal);
     result = await operation(group, group.signal);
     didComplete = true;
   } catch (error: unknown) {
@@ -134,6 +170,7 @@ export async function runTaskGroup<T>(
   } finally {
     group.close();
     await group.waitForChildren();
+    group.cleanup();
   }
 
   group.rethrowIfFailed();

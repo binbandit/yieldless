@@ -1,0 +1,34 @@
+# `src/` Codemap
+
+## Responsibility
+Implements the published Yieldless library: tuple primitives, structured-concurrency helpers, boundary adapters, and the barrel exports that assemble the package surface.
+
+## Design
+The source tree follows a flat module-per-capability layout. Each file owns one small abstraction and is exported as both a direct subpath and through `src/index.ts`.
+
+| Module | Responsibility |
+|--------|----------------|
+| `error.ts` | Defines `SafeResult` plus tuple capture and unwrap helpers. |
+| `task.ts` | Implements structured concurrency with sibling cancellation and upstream abort inheritance. |
+| `resource.ts` | Wraps acquire/release pairs in an `AsyncDisposable` compatible object. |
+| `di.ts` | Binds plain dependency objects onto functions without a container. |
+| `retry.ts` | Runs tuple operations with exponential backoff and abort-aware timers. |
+| `signal.ts` | Builds disposable deadline signals and timeout wrappers for abort-aware work. |
+| `context.ts` | Wraps `AsyncLocalStorage` and trace-span lifecycles. |
+| `all.ts` | Provides tuple-native `all()`, `race()`, and bounded `mapLimit()` combinators with shared cancellation. |
+| `schema.ts` | Adapts `parse` and `safeParse` style validators into tuple results. |
+| `router.ts` | Converts tuple handlers into Hono-style JSON responses and HTTP errors. |
+| `ipc.ts` | Preserves tuple success and error payloads across Electron IPC boundaries. |
+| `node.ts` | Wraps common filesystem and child-process calls in tuple-returning adapters. |
+| `index.ts` | Re-exports types and functions for the top-level package import. |
+
+## Data And Control Flow
+1. `error.ts` establishes the tuple contract shared across the repo.
+2. Control-flow helpers like `task.ts`, `retry.ts`, `context.ts`, and `all.ts` compose around that contract while forwarding `AbortSignal`, including bounded batch work through `mapLimit()`.
+3. Boundary modules adapt external APIs into tuple form instead of introducing another result type.
+4. `index.ts` exposes the same modules as a coherent package while preserving direct subpath imports for tree-shaking and mental clarity.
+
+## Integration Points
+- Consumed by: application code importing `yieldless` or `yieldless/*` subpaths.
+- Validated by: [test/codemap.md](../test/codemap.md) contract tests.
+- Documented by: [docs/codemap.md](../docs/codemap.md) and `README.md`.

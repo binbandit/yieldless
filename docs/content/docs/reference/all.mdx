@@ -3,12 +3,14 @@ title: yieldless/all
 description: Tuple-aware parallel combinators that share cancellation.
 ---
 
-`yieldless/all` gives you two helpers for tuple-returning parallel work: `all(tasks)` waits for every task or aborts siblings on the first error. `race(tasks)` resolves with the first settled result and aborts the rest.
+`yieldless/all` gives you helpers for tuple-returning parallel work: `all(tasks)` waits for every task or aborts siblings on the first error, `race(tasks)` resolves with the first settled result and aborts the rest, and `mapLimit(items, mapper, options)` processes a collection with bounded concurrency.
 
 ## Exports
 
 - `type SafeTask<T, E = Error> = (signal: AbortSignal) => PromiseLike<SafeResult<T, E>> | SafeResult<T, E>`
+- `type MapLimitMapper<Item, Value, E = Error> = (item: Item, index: number, signal: AbortSignal) => PromiseLike<SafeResult<Value, E>> | SafeResult<Value, E>`
 - `all(tasks, options): Promise<SafeResult<AllValues<Tasks>, ParallelError<Tasks>>>`
+- `mapLimit(items, mapper, { concurrency, signal }): Promise<SafeResult<Value[], E>>`
 - `race(tasks, options): Promise<SafeResult<Value, Error>>`
 
 ## Example
@@ -23,13 +25,30 @@ const result = await all([
 ]);
 ```
 
+For large batches, use `mapLimit()` to avoid starting every item at once:
+
+```ts
+import { mapLimit } from "yieldless/all";
+import { safeTry } from "yieldless/error";
+
+const [error, avatars] = await mapLimit(
+  users,
+  (user, _index, signal) =>
+    safeTry(fetchAvatar(user.avatarUrl, { signal })),
+  { concurrency: 4 },
+);
+```
+
 ## Behavior notes
 
 - `all([])` succeeds with an empty array.
+- `mapLimit([], mapper, options)` succeeds with an empty array.
+- `mapLimit()` preserves input order and throws a `RangeError` when `concurrency` is less than `1` or not an integer.
 - `race([])` throws a `RangeError`.
-- If any task returns `[error, null]`, siblings are aborted before the final tuple is returned.
-- Thrown task failures are normalized into tuple failures internally.
+- If any task or mapped item returns `[error, null]`, siblings are aborted before the final tuple is returned.
+- `race()` aborts losing tasks immediately, then waits for them to settle before it returns.
+- Thrown task and mapper failures are normalized into tuple failures internally.
 
 ## When to prefer runTaskGroup() instead
 
-Use `all()` and `race()` when the tasks are already tuple-native. Use `runTaskGroup()` when you want imperative fan-out and regular promise values.
+Use `all()`, `race()`, and `mapLimit()` when the work is already tuple-native. Use `runTaskGroup()` when you want imperative fan-out and regular promise values.

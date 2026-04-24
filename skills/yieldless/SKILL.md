@@ -23,27 +23,32 @@ Import from subpath exports. Never import from the barrel `"yieldless"` in produ
 
 ### yieldless/error
 
-Foundation. Wraps promises and sync functions into tuples.
+Foundation. Wraps promises and sync functions into tuples and gives you readable tuple constructors plus a fold helper for UI boundaries.
 
 ```ts
-import { safeTry, safeTrySync, unwrap } from "yieldless/error";
+import { err, match, ok, safeTry, safeTrySync, unwrap } from "yieldless/error";
 
-const [err, body] = await safeTry(fetch(url));
+const [readError, body] = await safeTry(fetch(url));
 const [parseErr, data] = safeTrySync(() => JSON.parse(raw));
 const value = unwrap(result); // rethrows if error
+return parseErr ? err(parseErr) : ok(data);
 ```
 
 ### yieldless/task
 
-Structured concurrency. `runTaskGroup` shares an `AbortController` across spawned tasks. If one fails, the signal aborts siblings and the group waits for all children before rethrowing.
+Structured concurrency. `runTaskGroup` shares an `AbortController` across spawned tasks. If one fails, the signal aborts siblings and the group waits for all children before rethrowing. If you already have an upstream `AbortSignal`, pass it in so the group inherits cancellation.
 
 ```ts
 import { runTaskGroup } from "yieldless/task";
+
+const requestController = new AbortController();
 
 const result = await runTaskGroup(async (group) => {
   const user = group.spawn((signal) => loadUser(signal));
   const audit = group.spawn((signal) => writeAuditLog(signal));
   return await user;
+}, {
+  signal: requestController.signal,
 });
 ```
 
@@ -86,6 +91,21 @@ const result = await safeRetry(
 
 Options: `maxAttempts` (default 3), `baseDelayMs` (100), `maxDelayMs` (30000), `factor` (2), `jitter` ("full" | "none" | custom fn), `shouldRetry`, `onRetry`, `signal`.
 
+### yieldless/signal
+
+Deadline helpers for any abort-aware code.
+
+```ts
+import { withTimeout } from "yieldless/signal";
+
+const response = await withTimeout(
+  (signal) => fetch(url, { signal }),
+  { timeoutMs: 5_000 },
+);
+```
+
+Use `withTimeout` for one call and `createTimeoutSignal` when several operations need to share the same budget.
+
 ### yieldless/context
 
 `AsyncLocalStorage` wrapper. Not a global container.
@@ -103,16 +123,24 @@ await ctx.run({ requestId: crypto.randomUUID() }, async () => {
 
 ### yieldless/all
 
-Parallel tuple combinators with shared abort. If one task returns `[error, null]`, the signal aborts before returning.
+Parallel tuple combinators with shared abort. If one task or mapped item returns `[error, null]`, the signal aborts before returning.
 
 ```ts
-import { all, race } from "yieldless/all";
+import { all, mapLimit, race } from "yieldless/all";
 
 const result = await all([
   (signal) => readPrimary(signal),
   (signal) => readReplica(signal),
 ]);
+
+const [error, thumbnails] = await mapLimit(
+  images,
+  (image, _index, signal) => renderThumbnail(image, signal),
+  { concurrency: 4 },
+);
 ```
+
+Use `mapLimit` when processing a list of files, API calls, or subprocess jobs where unbounded parallelism would make the user's machine or service worse.
 
 ### yieldless/schema
 
@@ -141,10 +169,14 @@ HTTP error classes: `BadRequestError`, `UnauthorizedError`, `ForbiddenError`, `N
 
 ### yieldless/ipc
 
-Electron IPC with tuple serialization. Errors are serialized to plain objects before crossing the boundary.
+Electron IPC with tuple serialization. Errors are serialized to plain objects before crossing the boundary. For navigation-heavy UIs, the abortable IPC helpers let the renderer cancel stale main-process requests with `AbortSignal`.
 
 ```ts
-import { createIpcMain, createIpcRenderer } from "yieldless/ipc";
+import {
+  createAbortableIpcBridge,
+  createAbortableIpcMain,
+  createAbortableIpcRenderer,
+} from "yieldless/ipc";
 ```
 
 ### yieldless/node
@@ -162,14 +194,16 @@ const [cmdErr, result] = await runCommandSafe("git", ["status", "--short"]);
 
 ## Rules
 
-1. **Always destructure tuples** -- use `const [err, value] = ...`, never ignore the error slot.
+1. **Destructure tuples or fold them intentionally** -- use `const [err, value] = ...` while you are still in service code, or `match(result, { ok, err })` when converting the result into UI state.
 2. **Check the error before using the value** -- `if (err) { handle; return; }` then use `value`.
 3. **Pass AbortSignal through** -- every function that accepts a signal should forward it to downstream calls.
 4. **Use subpath imports** -- `import { safeTry } from "yieldless/error"`, not from `"yieldless"`.
 5. **`null` is the sentinel** -- `SafeResult` uses `null` in each slot. Do not use `null` as a meaningful success value.
-6. **Prefer `safeTry` over try/catch** -- wrap promise-returning calls with `safeTry` rather than adding try/catch blocks.
-7. **Keep task group callbacks signal-aware** -- functions passed to `group.spawn` must accept and respect the `AbortSignal`.
-8. **Use `await using` for resources** -- `acquireResource` returns an `AsyncDisposable`; use it with `await using` syntax.
+6. **Prefer `ok` and `err` when returning tuples** -- `return err(error)` and `return ok(value)` are easier to scan than raw tuple literals in app code.
+7. **Prefer `safeTry` over try/catch** -- wrap promise-returning calls with `safeTry` rather than adding try/catch blocks.
+8. **Use `withTimeout` for firm deadlines** -- derive one signal and pass it through the transport instead of mixing ad hoc timers into business logic.
+9. **Keep task group callbacks signal-aware** -- functions passed to `group.spawn` must accept and respect the `AbortSignal`.
+10. **Use `await using` for resources** -- `acquireResource` returns an `AsyncDisposable`; use it with `await using` syntax.
 
 ## Project commands
 

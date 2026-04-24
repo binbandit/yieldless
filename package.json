@@ -42,6 +42,10 @@
       "types": "./dist/retry.d.ts",
       "import": "./dist/retry.js"
     },
+    "./signal": {
+      "types": "./dist/signal.d.ts",
+      "import": "./dist/signal.js"
+    },
     "./context": {
       "types": "./dist/context.d.ts",
       "import": "./dist/context.js"

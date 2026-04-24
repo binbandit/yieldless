@@ -8,6 +8,16 @@ export interface ParallelOptions {
   readonly signal?: AbortSignal;
 }
 
+export interface MapLimitOptions extends ParallelOptions {
+  readonly concurrency: number;
+}
+
+export type MapLimitMapper<Item, Value, ErrorType = Error> = (
+  item: Item,
+  index: number,
+  signal: AbortSignal,
+) => PromiseLike<SafeResult<Value, ErrorType>> | SafeResult<Value, ErrorType>;
+
 type TaskValue<Task> = Task extends SafeTask<infer T, any> ? T : never;
 type TaskError<Task> = Task extends SafeTask<any, infer E> ? E : never;
 
@@ -61,6 +71,25 @@ async function settleTask<T, E>(
   }
 }
 
+async function settleMappedItem<Item, Value, E>(
+  mapper: MapLimitMapper<Item, Value, E>,
+  item: Item,
+  index: number,
+  signal: AbortSignal,
+): Promise<SafeResult<Value, E>> {
+  try {
+    return await mapper(item, index, signal);
+  } catch (error: unknown) {
+    return [error as E, null];
+  }
+}
+
+function validateConcurrency(concurrency: number): void {
+  if (!Number.isInteger(concurrency) || concurrency < 1) {
+    throw new RangeError("concurrency must be a positive integer.");
+  }
+}
+
 /**
  * Runs tuple-returning tasks in parallel and cancels siblings on the first
  * error.
@@ -107,6 +136,82 @@ export async function all<Tasks extends readonly SafeTask<any, any>[]>(
 
     if (controller.signal.aborted) {
       return [createAbortReason(controller.signal) as ParallelError<Tasks>, null];
+    }
+
+    return [null, values];
+  } finally {
+    cleanup();
+  }
+}
+
+/**
+ * Maps many items through a tuple-returning worker while keeping at most
+ * `concurrency` operations active at once.
+ */
+export async function mapLimit<Item, Value, E = Error>(
+  items: readonly Item[],
+  mapper: MapLimitMapper<Item, Value, E>,
+  options: MapLimitOptions,
+): Promise<SafeResult<Value[], E>> {
+  validateConcurrency(options.concurrency);
+
+  if (items.length === 0) {
+    return [null, []];
+  }
+
+  const controller = new AbortController();
+  const cleanup = linkAbortSignal(options.signal, controller);
+  const values = new Array<Value>(items.length);
+  const workerCount = Math.min(options.concurrency, items.length);
+  let didFail = false;
+  let failure: E | undefined;
+  let nextIndex = 0;
+
+  const runWorker = async (): Promise<void> => {
+    while (!didFail && !controller.signal.aborted) {
+      const index = nextIndex;
+      nextIndex += 1;
+
+      if (index >= items.length) {
+        return;
+      }
+
+      const item = items[index] as Item;
+      const result = await settleMappedItem(
+        mapper,
+        item,
+        index,
+        controller.signal,
+      );
+
+      if (result[0] !== null) {
+        if (!didFail) {
+          didFail = true;
+          failure = result[0];
+
+          if (!controller.signal.aborted) {
+            controller.abort(result[0]);
+          }
+        }
+
+        return;
+      }
+
+      values[index] = result[1] as Value;
+    }
+  };
+
+  try {
+    await Promise.allSettled(
+      Array.from({ length: workerCount }, () => runWorker()),
+    );
+
+    if (didFail) {
+      return [failure as E, null];
+    }
+
+    if (controller.signal.aborted) {
+      return [createAbortReason(controller.signal) as E, null];
     }
 
     return [null, values];

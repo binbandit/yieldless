@@ -9,11 +9,12 @@ description: Structured concurrency with a shared AbortSignal and sibling cancel
 
 - `type TaskFactory<T> = (signal: AbortSignal) => PromiseLike<T> | T`
 - `interface TaskGroup { readonly signal: AbortSignal; spawn(task): Promise<T> }`
-- `runTaskGroup(operation): Promise<T>`
+- `runTaskGroup(operation, options?): Promise<T>`
 
 ## What runTaskGroup() guarantees
 
 - All spawned tasks share one AbortSignal
+- The group can inherit cancellation from an upstream AbortSignal
 - The first task failure aborts the group immediately
 - The group waits for every child task to settle before returning
 - The original failure is rethrown after cleanup
@@ -23,6 +24,8 @@ description: Structured concurrency with a shared AbortSignal and sibling cancel
 ```ts
 import { runTaskGroup } from "yieldless/task";
 
+const controller = new AbortController();
+
 const repository = await runTaskGroup(async (group) => {
   const refs = group.spawn((signal) => loadRefs(signal));
   const branches = group.spawn((signal) => loadBranches(signal));
@@ -31,6 +34,8 @@ const repository = await runTaskGroup(async (group) => {
     refs: await refs,
     branches: await branches,
   };
+}, {
+  signal: controller.signal,
 });
 ```
 

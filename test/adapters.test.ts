@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { createContext, createTraceContext, withSpan } from "yieldless/context";
 import {
+  createAbortableIpcBridge,
+  createAbortableIpcMain,
+  createAbortableIpcRenderer,
   createIpcBridge,
   createIpcMain,
   createIpcRenderer,
@@ -235,5 +238,57 @@ describe("yieldless/ipc", () => {
       message: "bad ref",
       code: "BAD_REF",
     });
+  });
+
+  it("supports abortable IPC requests without changing the success shape", async () => {
+    const pair = createIpcPair();
+    const server = createAbortableIpcMain(pair.ipcMain);
+    const client = createAbortableIpcRenderer(pair.ipcRenderer);
+    const bridge = createAbortableIpcBridge(client, ["git:status"] as const);
+
+    server.handle("git:status", async (_event, _signal, repoPath: string) => [
+      null,
+      `${repoPath}:clean`,
+    ] as const);
+
+    await expect(bridge["git:status"]("/tmp/repo")).resolves.toEqual([
+      null,
+      "/tmp/repo:clean",
+    ]);
+  });
+
+  it("aborts an in-flight IPC request when the renderer signal is canceled", async () => {
+    const pair = createIpcPair();
+    const server = createAbortableIpcMain(pair.ipcMain);
+    const client = createAbortableIpcRenderer(pair.ipcRenderer);
+    const controller = new AbortController();
+    let sawAbort = false;
+
+    server.handle("git:diff", async (_event, signal) => {
+      await new Promise<void>((resolve) => {
+        signal.addEventListener(
+          "abort",
+          () => {
+            sawAbort = true;
+            resolve();
+          },
+          { once: true },
+        );
+      });
+
+      return [new DOMException("IPC request canceled.", "AbortError"), null] as const;
+    });
+
+    const running = client.invokeWithSignal(controller.signal, "git:diff");
+
+    setTimeout(() => {
+      controller.abort(new Error("stale pull request view"));
+    }, 20);
+
+    const [error, value] = await running;
+
+    expect(value).toBeNull();
+    expect(error?.message).toBe("stale pull request view");
+    expect(sawAbort).toBe(true);
   });
 });

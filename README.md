@@ -14,8 +14,9 @@ The library is built around four ideas:
 The next layer adds practical backend pieces on top of those primitives:
 
 - retry loops with abort-aware backoff
+- deadline helpers for any abort-aware operation
 - async context storage for request-scoped data and spans
-- tuple-native parallel combinators
+- tuple-native parallel and bounded-work combinators
 - schema adapters that stay in tuple-land
 - route handlers that turn tuple errors into HTTP responses
 - IPC bridges that keep tuple results intact across Electron boundaries
@@ -39,10 +40,10 @@ TypeScript `5.5+` is the target baseline. The package is compiled with `isolated
 
 ### `yieldless/error`
 
-`safeTry` and `safeTrySync` turn thrown values into `[error, value]` tuples.
+`safeTry` and `safeTrySync` turn thrown values into `[error, value]` tuples. `ok`, `err`, and `match` make those tuples easier to return and fold at app boundaries.
 
 ```ts
-import { safeTry, safeTrySync, unwrap } from "yieldless/error";
+import { err, match, ok, safeTry, safeTrySync, unwrap } from "yieldless/error";
 
 const [readError, body] = await safeTry(fetch("https://example.com"));
 
@@ -52,6 +53,11 @@ if (readError) {
 
 const parsed = safeTrySync(() => JSON.parse("{\"ok\":true}"));
 const value = unwrap(parsed);
+
+const uiState = match(ok(value), {
+  ok: (data) => ({ kind: "ready", data }),
+  err: (error) => ({ kind: "error", message: String(error) }),
+});
 ```
 
 ### `yieldless/task`
@@ -61,6 +67,8 @@ const value = unwrap(parsed);
 ```ts
 import { runTaskGroup } from "yieldless/task";
 
+const requestController = new AbortController();
+
 const result = await runTaskGroup(async (group) => {
   const userTask = group.spawn(async (signal) => loadUser(signal));
   const auditTask = group.spawn(async (signal) => writeAuditLog(signal));
@@ -69,10 +77,13 @@ const result = await runTaskGroup(async (group) => {
   await auditTask;
 
   return user;
+}, {
+  signal: requestController.signal,
 });
 ```
 
 If one spawned task fails, the group aborts the shared signal, waits for the remaining children to settle, and then rethrows the original failure.
+If you pass an upstream `AbortSignal`, the group inherits that cancellation too.
 
 ### `yieldless/resource`
 
@@ -128,6 +139,24 @@ const result = await safeRetry(
 
 The retry delay respects `AbortSignal`, so a canceled parent task does not leave timers hanging around.
 
+### `yieldless/signal`
+
+`withTimeout` and `createTimeoutSignal` give any abort-aware operation a deadline without hand-writing timer cleanup.
+
+```ts
+import { safeTry } from "yieldless/error";
+import { withTimeout } from "yieldless/signal";
+
+const [error, response] = await safeTry(
+  withTimeout(
+    (signal) => fetch("https://example.com/api/reviews", { signal }),
+    { timeoutMs: 5_000 },
+  ),
+);
+```
+
+If you need the lower-level signal for a longer scope, `createTimeoutSignal()` gives you a disposable derived signal that inherits parent cancellation too.
+
 ### `yieldless/context`
 
 `createContext` wraps `AsyncLocalStorage` without trying to turn it into a global container.
@@ -146,18 +175,25 @@ For tracing, `withSpan` works with a tracer that exposes `startActiveSpan`, whic
 
 ### `yieldless/all`
 
-`all` and `race` run tuple tasks with a shared abort signal.
+`all`, `race`, and `mapLimit` run tuple work with a shared abort signal.
 
 ```ts
-import { all } from "yieldless/all";
+import { all, mapLimit } from "yieldless/all";
 
 const result = await all([
   (signal) => readPrimary(signal),
   (signal) => readReplica(signal),
 ]);
+
+const [error, thumbnails] = await mapLimit(
+  images,
+  (image, _index, signal) => renderThumbnail(image, signal),
+  { concurrency: 4 },
+);
 ```
 
 If one task returns `[error, null]`, the shared signal is aborted before the utility returns.
+`mapLimit()` preserves input order while keeping only the configured number of items in flight, which is useful for API calls, file processing, and subprocess work that should not stampede a machine or service.
 
 ### `yieldless/schema`
 
@@ -193,13 +229,18 @@ Known HTTP-style errors map to status codes automatically, and everything else f
 
 ### `yieldless/ipc`
 
-`createIpcMain` and `createIpcRenderer` wrap Electron's `handle()` / `invoke()` pair and keep everything in tuple form.
+`createIpcMain` and `createIpcRenderer` wrap Electron's `handle()` / `invoke()` pair and keep everything in tuple form. `createAbortableIpcMain` and friends add request cancellation for renderers that switch screens quickly.
 
 ```ts
-import { createIpcMain, createIpcRenderer } from "yieldless/ipc";
+import {
+  createAbortableIpcBridge,
+  createAbortableIpcMain,
+  createAbortableIpcRenderer,
+} from "yieldless/ipc";
 ```
 
 Tuple errors are serialized into plain objects before they cross the IPC boundary, so the renderer does not rely on Electron's lossy thrown-error conversion.
+If you need renderer-driven cancellation, the abortable IPC helpers let an `AbortSignal` stop the in-flight main-process work too.
 
 ### `yieldless/node`
 

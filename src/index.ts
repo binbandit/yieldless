@@ -1,5 +1,12 @@
-export type { AllValues, ParallelError, ParallelOptions, SafeTask } from "yieldless/all";
-export { all, race } from "yieldless/all";
+export type {
+  AllValues,
+  MapLimitMapper,
+  MapLimitOptions,
+  ParallelError,
+  ParallelOptions,
+  SafeTask,
+} from "yieldless/all";
+export { all, mapLimit, race } from "yieldless/all";
 
 export type { SpanLike, TracerLike, YieldlessContext } from "yieldless/context";
 export { createContext, createTraceContext, withSpan } from "yieldless/context";
@@ -7,10 +14,15 @@ export { createContext, createTraceContext, withSpan } from "yieldless/context";
 export type { Injectable } from "yieldless/di";
 export { inject } from "yieldless/di";
 
-export type { SafeResult } from "yieldless/error";
-export { safeTry, safeTrySync, unwrap } from "yieldless/error";
+export type { MatchBranches, SafeResult } from "yieldless/error";
+export { err, match, ok, safeTry, safeTrySync, unwrap } from "yieldless/error";
 
 export type {
+  AbortSignalIpcBridge,
+  AbortableIpcBridge,
+  AbortableIpcClient,
+  AbortableIpcHandler,
+  AbortableIpcServer,
   IpcBridge,
   IpcClient,
   IpcContract,
@@ -26,6 +38,9 @@ export type {
   SerializedIpcError,
 } from "yieldless/ipc";
 export {
+  createAbortableIpcBridge,
+  createAbortableIpcMain,
+  createAbortableIpcRenderer,
   createIpcBridge,
   createIpcMain,
   createIpcRenderer,
@@ -61,6 +76,13 @@ export type { RetryJitter, RetryOperation, RetryOptions, RetryState } from "yiel
 export { safeRetry } from "yieldless/retry";
 
 export type {
+  TimeoutSignal,
+  TimeoutSignalOptions,
+  WithTimeoutOptions,
+} from "yieldless/signal";
+export { createTimeoutSignal, TimeoutError, withTimeout } from "yieldless/signal";
+
+export type {
   ParseAsyncSchema,
   ParseSchema,
   SafeParseAsyncSchema,
@@ -89,5 +111,5 @@ export {
   ValidationError,
 } from "yieldless/router";
 
-export type { TaskFactory, TaskGroup } from "yieldless/task";
+export type { TaskFactory, TaskGroup, TaskGroupOptions } from "yieldless/task";
 export { runTaskGroup } from "yieldless/task";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { inject } from "yieldless/di";
-import { safeTry, safeTrySync, unwrap } from "yieldless/error";
+import { err, match, ok, safeTry, safeTrySync, unwrap } from "yieldless/error";
 import { acquireResource } from "yieldless/resource";
 
 describe("yieldless/error", () => {
@@ -24,6 +24,31 @@ describe("yieldless/error", () => {
   it("unwrap returns successful values and rethrows failures", () => {
     expect(unwrap([null, 42])).toBe(42);
     expect(() => unwrap([new Error("broken"), null])).toThrow("broken");
+  });
+
+  it("ok and err make tuple construction explicit", () => {
+    expect(ok("ready")).toEqual([null, "ready"]);
+    expect(err("boom")).toEqual(["boom", null]);
+  });
+
+  it("match folds a tuple into renderer-friendly state", () => {
+    const ready = match(ok({ id: 7 }), {
+      ok: (value) => ({ kind: "ready" as const, value }),
+      err: (error) => ({ kind: "error" as const, message: String(error) }),
+    });
+    const failed = match(err(new Error("offline")), {
+      ok: (value) => ({ kind: "ready" as const, value }),
+      err: (error) => ({ kind: "error" as const, message: error.message }),
+    });
+
+    expect(ready).toEqual({
+      kind: "ready",
+      value: { id: 7 },
+    });
+    expect(failed).toEqual({
+      kind: "error",
+      message: "offline",
+    });
   });
 });
 
