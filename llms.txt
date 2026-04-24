@@ -17,6 +17,8 @@ Conceptual documentation for adopting Yieldless and choosing the right module.
 
 - [Quickstart](https://binbandit.github.io/yieldless/docs/guides/quickstart/): Get a Yieldless application flow working with tuple errors, cancellation, and one realistic boundary.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/quickstart/index.mdx
+- [Examples](https://binbandit.github.io/yieldless/docs/guides/examples/): Small and larger Yieldless examples for common async, resilience, and data-access patterns.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/examples/index.mdx
 - [Module Selection](https://binbandit.github.io/yieldless/docs/guides/module-selection/): Choose the smallest Yieldless module for each kind of application work.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/module-selection/index.mdx
 - [Design Rules](https://binbandit.github.io/yieldless/docs/guides/design-rules/): The principles behind Yieldless and the tradeoffs those principles deliberately make.
@@ -91,6 +93,8 @@ End-to-end examples for backend, batch, and Electron workflows.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/resilient-service-flow/index.mdx
 - [Bounded Batch Work](https://binbandit.github.io/yieldless/docs/recipes/bounded-batch-work/): Process lists of API, filesystem, or subprocess work without unbounded parallelism.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/bounded-batch-work/index.mdx
+- [Repository Indexer](https://binbandit.github.io/yieldless/docs/recipes/repository-indexer/): A larger example that combines queues, pub/sub, caching, batching, limits, retries, task groups, and Node subprocesses.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/repository-indexer/index.mdx
 - [Electron Git Client](https://binbandit.github.io/yieldless/docs/recipes/electron-git-client/): An end-to-end shape for a desktop Git app using IPC tuples, abortable subprocesses, and typed renderer calls.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/electron-git-client/index.mdx
 - [Electron PR Review Workbench](https://binbandit.github.io/yieldless/docs/recipes/electron-pr-review-workbench/): A practical architecture for a GitHub pull-request review desktop app using tuples in the right places and ordinary UI state in the renderer.

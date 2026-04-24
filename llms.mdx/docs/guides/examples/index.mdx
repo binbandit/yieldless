@@ -1,0 +1,442 @@
+# Examples
+
+
+
+This page is a grab bag of practical examples. Each snippet is intentionally plain TypeScript: no custom runtime, no program builder, no framework-specific wrapper.
+
+Use the small examples when you need one pattern. Use the larger examples when you want to see how several modules compose at an application boundary.
+
+Small examples [#small-examples]
+
+Convert one unreliable boundary into a tuple [#convert-one-unreliable-boundary-into-a-tuple]
+
+```ts
+import { safeTry } from "yieldless/error";
+
+export async function readJson<T>(response: Response) {
+  const [error, body] = await safeTry(response.json() as Promise<T>);
+
+  if (error) {
+    return [error, null] as const;
+  }
+
+  return [null, body] as const;
+}
+```
+
+Good tuple code usually starts at an edge: HTTP, files, subprocesses, validation, IPC, or user-provided data.
+
+Fetch JSON with a real deadline [#fetch-json-with-a-real-deadline]
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const [error, profile] = await fetchJsonSafe<Profile>(
+  `https://api.example.com/profiles/${profileId}`,
+  {
+    timeoutMs: 5_000,
+    signal,
+  },
+);
+
+if (error) {
+  return [error, null] as const;
+}
+```
+
+The timeout and parent `signal` are linked, so either one can stop the request.
+
+Retry only the noisy dependency [#retry-only-the-noisy-dependency]
+
+```ts
+import { HttpStatusError, fetchJsonSafe } from "yieldless/fetch";
+import { safeRetry } from "yieldless/retry";
+
+const [error, invoice] = await safeRetry(
+  (_attempt, attemptSignal) =>
+    fetchJsonSafe<Invoice>(`/api/invoices/${invoiceId}`, {
+      timeoutMs: 3_000,
+      signal: attemptSignal,
+    }),
+  {
+    maxAttempts: 3,
+    baseDelayMs: 150,
+    signal,
+    shouldRetry: (error) =>
+      !(error instanceof HttpStatusError) || error.status >= 500,
+  },
+);
+```
+
+Avoid retrying the whole route handler. Validation, authorization, and side effects should not run again just because a remote service had a brief wobble.
+
+Reuse a schedule policy [#reuse-a-schedule-policy]
+
+```ts
+import {
+  composeSchedules,
+  exponentialBackoff,
+  maxAttempts,
+  runScheduled,
+} from "yieldless/schedule";
+
+const transientRemotePolicy = composeSchedules(
+  maxAttempts(5),
+  exponentialBackoff({
+    baseDelayMs: 100,
+    maxDelayMs: 2_000,
+  }),
+);
+
+const result = await runScheduled(
+  (_attempt, attemptSignal) => refreshSearchIndex(indexId, attemptSignal),
+  transientRemotePolicy,
+  { signal },
+);
+```
+
+Schedules are useful when several call sites should share timing rules without sharing business logic.
+
+Put a ceiling on a shared resource [#put-a-ceiling-on-a-shared-resource]
+
+```ts
+import { createSemaphore, withPermit } from "yieldless/limiter";
+
+const databaseConnections = createSemaphore(10);
+
+const [error, user] = await withPermit(
+  databaseConnections,
+  (scopedSignal) => loadUserFromDatabase(userId, scopedSignal),
+  { signal },
+);
+```
+
+Use semaphores for "only N at once." Use rate limiters for "only N per time window."
+
+Respect an API quota [#respect-an-api-quota]
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+import { createRateLimiter } from "yieldless/limiter";
+
+const githubQuota = createRateLimiter({
+  limit: 30,
+  intervalMs: 60_000,
+});
+
+const [quotaError] = await githubQuota.takeSafe({ signal });
+
+if (quotaError) {
+  return [quotaError, null] as const;
+}
+
+return await fetchJsonSafe<Repository>(repositoryUrl, { signal });
+```
+
+Keeping the wait explicit makes quota pressure visible in code review.
+
+Hand work from producers to workers [#hand-work-from-producers-to-workers]
+
+```ts
+import { createQueue } from "yieldless/queue";
+
+const queue = createQueue<Job>({ capacity: 100 });
+
+async function worker(signal: AbortSignal) {
+  while (!signal.aborted) {
+    const [takeError, job] = await queue.take({ signal });
+
+    if (takeError) {
+      return;
+    }
+
+    await processJob(job, signal);
+  }
+}
+
+const [offerError] = await queue.offer({ id: "job-1" }, { signal });
+```
+
+Bound the queue when producers can outpace workers. Capacity is part of the user experience.
+
+Broadcast local progress [#broadcast-local-progress]
+
+```ts
+import { createPubSub } from "yieldless/pubsub";
+
+const progress = createPubSub<ProgressEvent>({ replay: 1 });
+const subscription = progress.subscribe();
+
+progress.publish({
+  type: "started",
+  jobId,
+});
+
+for await (const event of subscription) {
+  renderProgress(event);
+}
+```
+
+Use pub/sub for in-process progress, notifications, and diagnostics. Use durable infrastructure when events must survive restarts.
+
+Cache stable reads [#cache-stable-reads]
+
+```ts
+import { createCache } from "yieldless/cache";
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const projectCache = createCache<string, Project>({
+  maxSize: 500,
+  ttlMs: 60_000,
+  load: (projectId, signal) =>
+    fetchJsonSafe<Project>(`/api/projects/${projectId}`, { signal }),
+});
+
+const [error, project] = await projectCache.get(projectId, { signal });
+```
+
+Cache reads, not commands. Failed loads are returned but not stored.
+
+Batch nearby keyed reads [#batch-nearby-keyed-reads]
+
+```ts
+import { createBatcher } from "yieldless/batcher";
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const owners = createBatcher<string, Owner>({
+  waitMs: 2,
+  maxBatchSize: 50,
+  loadMany: async (ownerIds, signal) => {
+    const [error, values] = await fetchJsonSafe<Owner[]>(
+      `/api/owners?ids=${encodeURIComponent(ownerIds.join(","))}`,
+      { signal },
+    );
+
+    if (error) {
+      return [error, null] as const;
+    }
+
+    const byId = new Map(values.map((owner) => [owner.id, owner]));
+
+    return [
+      null,
+      ownerIds.map((id) => byId.get(id) ?? { id, name: "Unknown owner" }),
+    ] as const;
+  },
+});
+
+const [error, owner] = await owners.load(ownerId, { signal });
+```
+
+Batchers return one value per requested key, in the same order. If your backend returns unordered results, map them back explicitly.
+
+Fail fast when a dependency is already down [#fail-fast-when-a-dependency-is-already-down]
+
+```ts
+import { CircuitOpenError, createCircuitBreaker } from "yieldless/breaker";
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const loadFlags = createCircuitBreaker(
+  (signal, accountId: string) =>
+    fetchJsonSafe<FeatureFlags>(`/api/accounts/${accountId}/flags`, {
+      timeoutMs: 2_000,
+      signal,
+    }),
+  {
+    failureThreshold: 3,
+    cooldownMs: 15_000,
+  },
+);
+
+const [error, flags] = await loadFlags(accountId);
+
+if (error instanceof CircuitOpenError) {
+  return [null, defaultFlags] as const;
+}
+```
+
+Circuit breakers are for external dependencies and expensive boundaries, not validation branches.
+
+Make async tests deterministic [#make-async-tests-deterministic]
+
+```ts
+import {
+  createManualClock,
+  createTestSignal,
+  flushMicrotasks,
+} from "yieldless/test";
+
+const clock = createManualClock();
+const testSignal = createTestSignal();
+let settled = false;
+
+void clock.sleep(1_000, { signal: testSignal.signal }).then(() => {
+  settled = true;
+});
+
+clock.tick(1_000);
+await flushMicrotasks();
+
+expect(settled).toBe(true);
+```
+
+Manual clocks work best when the production code accepts a clock or sleep dependency. They do not patch global timers.
+
+Larger examples [#larger-examples]
+
+A user card loader [#a-user-card-loader]
+
+This example validates input, fetches two independent resources under one cancellation signal, and returns an ordinary view model.
+
+```ts
+import { all } from "yieldless/all";
+import { fetchJsonSafe } from "yieldless/fetch";
+import { parseSafe } from "yieldless/schema";
+
+export async function loadUserCard(input: unknown, signal: AbortSignal) {
+  const [inputError, params] = parseSafe(userCardParamsSchema, input);
+
+  if (inputError) {
+    return [inputError, null] as const;
+  }
+
+  const [loadError, loaded] = await all(
+    [
+      (taskSignal) =>
+        fetchJsonSafe<User>(`/api/users/${params.userId}`, {
+          timeoutMs: 3_000,
+          signal: taskSignal,
+        }),
+      (taskSignal) =>
+        fetchJsonSafe<Activity[]>(`/api/users/${params.userId}/activity`, {
+          timeoutMs: 3_000,
+          signal: taskSignal,
+        }),
+    ],
+    { signal },
+  );
+
+  if (loadError) {
+    return [loadError, null] as const;
+  }
+
+  const [user, activity] = loaded;
+
+  return [
+    null,
+    {
+      id: user.id,
+      name: user.name,
+      recentActivityCount: activity.length,
+    },
+  ] as const;
+}
+```
+
+The two fetches are allowed to run together, but a failure in either one aborts the other.
+
+A cached GraphQL-style resolver helper [#a-cached-graphql-style-resolver-helper]
+
+This example combines `cache` and `batcher`: repeated IDs are cached across resolver calls, while nearby misses are batched together.
+
+```ts
+import { createBatcher } from "yieldless/batcher";
+import { createCache } from "yieldless/cache";
+
+const loadUsersById = createBatcher<string, User>({
+  waitMs: 1,
+  maxBatchSize: 100,
+  loadMany: (ids, signal) => userRepository.findManyById(ids, signal),
+});
+
+const users = createCache<string, User>({
+  ttlMs: 30_000,
+  maxSize: 1_000,
+  load: (id, signal) => loadUsersById.load(id, { signal }),
+});
+
+export async function resolveAuthor(post: Post, signal: AbortSignal) {
+  const [error, author] = await users.get(post.authorId, { signal });
+
+  if (error) {
+    return [error, null] as const;
+  }
+
+  return [null, author] as const;
+}
+```
+
+The batcher removes N+1 pressure from the current tick. The cache removes repeated reads across later calls.
+
+A route with cached reads and explicit fresh reload [#a-route-with-cached-reads-and-explicit-fresh-reload]
+
+```ts
+import { createCache } from "yieldless/cache";
+import { fetchJsonSafe } from "yieldless/fetch";
+import { honoHandler } from "yieldless/router";
+
+const repositories = createCache<string, Repository>({
+  ttlMs: 30_000,
+  maxSize: 1_000,
+  load: (repoId, signal) =>
+    fetchJsonSafe<Repository>(`/api/repositories/${repoId}`, {
+      timeoutMs: 4_000,
+      signal,
+    }),
+});
+
+export const getRepository = honoHandler(async (c) => {
+  const repoId = c.req.param("repoId");
+  const forceRefresh = c.req.query("refresh") === "true";
+  const result = forceRefresh
+    ? await repositories.refresh(repoId, { signal: c.req.raw.signal })
+    : await repositories.get(repoId, { signal: c.req.raw.signal });
+
+  return result;
+});
+```
+
+The caller can ask for freshness without bypassing the tuple flow or duplicating the loader.
+
+Avoid examples [#avoid-examples]
+
+Avoid hiding every policy in one wrapper [#avoid-hiding-every-policy-in-one-wrapper]
+
+```ts
+const user = await runtime.run(
+  retry(cache(batch(limit(fetchUser)))),
+  userId,
+);
+```
+
+This makes the code look compact, but now readers must learn your runtime before they can understand a request.
+
+Prefer visible composition at the boundary:
+
+```ts
+const [quotaError] = await apiQuota.takeSafe({ signal });
+if (quotaError) return [quotaError, null] as const;
+
+const [userError, user] = await users.get(userId, { signal });
+if (userError) return [userError, null] as const;
+```
+
+Avoid using queues as silent memory [#avoid-using-queues-as-silent-memory]
+
+```ts
+const queue = createQueue<Upload>();
+
+for (const upload of incomingUploads) {
+  await queue.offer(upload);
+}
+```
+
+If the input is user-sized or service-sized, make the pressure visible:
+
+```ts
+const queue = createQueue<Upload>({ capacity: 200 });
+```
+
+<Callout>
+  Good examples should make failure, cancellation, and pressure obvious. If a helper hides those three things, it is probably drifting away from Yieldless' mission.
+</Callout>
