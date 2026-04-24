@@ -11,6 +11,13 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: 'Yieldless',
     },
+    links: [
+      {
+        text: 'llms.txt',
+        description: 'A compact map of guides, reference pages, and recipes.',
+        url: '/llms.txt',
+      },
+    ],
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };
 }
