@@ -95,6 +95,22 @@ const run = inject(handler, { logger: console });
 run("world"); // deps already bound
 ```
 
+### yieldless/env
+
+Environment variable helpers and schema-backed config parsing.
+
+```ts
+import { parseEnvSafe, pickEnv, readEnv } from "yieldless/env";
+
+const [urlError, databaseUrl] = readEnv(process.env, "DATABASE_URL");
+const [envError, env] = parseEnvSafe(
+  envSchema,
+  pickEnv(process.env, ["DATABASE_URL", "PORT"] as const),
+);
+```
+
+Use `readEnv` for one-off required values, `readOptionalEnv` for optional values, and `parseEnvSafe` when config should be validated through a schema.
+
 ### yieldless/retry
 
 Exponential backoff with abort-aware sleep. Operations must return `SafeResult`.

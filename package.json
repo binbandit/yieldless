@@ -26,6 +26,10 @@
       "types": "./dist/error.d.ts",
       "import": "./dist/error.js"
     },
+    "./env": {
+      "types": "./dist/env.d.ts",
+      "import": "./dist/env.js"
+    },
     "./result": {
       "types": "./dist/result.d.ts",
       "import": "./dist/result.js"

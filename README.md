@@ -11,6 +11,7 @@ The library is built around four ideas:
 - structured concurrency through `AbortController`
 - resource cleanup through native `await using`
 - dependency injection through plain functions
+- configuration parsing as ordinary data
 
 The next layer adds practical backend pieces on top of those primitives:
 
@@ -19,6 +20,7 @@ The next layer adds practical backend pieces on top of those primitives:
 - abort-aware sleep and polling
 - fetch helpers with status, timeout, and JSON handling
 - result combinators for success/error pipelines
+- environment readers and schema-backed config parsing
 - async context storage for request-scoped data and spans
 - tuple-native parallel and bounded-work combinators
 - in-flight request deduplication
@@ -145,6 +147,21 @@ const run = inject(handler, {
 
 run("world");
 ```
+
+### `yieldless/env`
+
+`readEnv`, `pickEnv`, and `parseEnvSafe` make startup config explicit without a config framework.
+
+```ts
+import { parseEnvSafe, pickEnv } from "yieldless/env";
+
+const [error, env] = parseEnvSafe(
+  envSchema,
+  pickEnv(process.env, ["DATABASE_URL", "PORT"] as const),
+);
+```
+
+Missing and empty values can be handled as tuple errors, and schema validation stays in the same flow as the rest of the app.
 
 ### `yieldless/retry`
 

@@ -13,6 +13,7 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | `task.ts` | Implements structured concurrency with sibling cancellation and upstream abort inheritance. |
 | `resource.ts` | Wraps acquire/release pairs in an `AsyncDisposable` compatible object. |
 | `di.ts` | Binds plain dependency objects onto functions without a container. |
+| `env.ts` | Reads required/optional environment variables and adapts schema-backed config parsing into tuples. |
 | `retry.ts` | Runs tuple operations with exponential backoff and abort-aware timers. |
 | `signal.ts` | Builds disposable deadline signals and timeout wrappers for abort-aware work. |
 | `timer.ts` | Provides abort-aware sleep, tuple sleep, and fixed-interval polling. |
