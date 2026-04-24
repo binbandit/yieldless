@@ -43,3 +43,36 @@ Good fits [#good-fits]
 * Environment parsing
 * Normalizing database payloads
 * Decoding IPC input
+
+Good [#good]
+
+Validate unknown input before it enters domain code.
+
+```ts
+const [error, input] = parseSafe(createUserSchema, await request.json());
+if (error) {
+  return [new ValidationError("Invalid request body", { details: error }), null];
+}
+
+return createUser(input);
+```
+
+Use `parseAsyncSafe()` only when the schema itself performs asynchronous validation.
+
+```ts
+const [error, user] = await parseAsyncSafe(userSchema, input);
+```
+
+Avoid [#avoid]
+
+Do not validate the same data repeatedly in inner functions.
+
+```ts
+function renderUser(input: unknown) {
+  const [error, user] = parseSafe(userSchema, input);
+  if (error) throw error;
+  return user.name;
+}
+```
+
+Validate once at the boundary, then pass typed values through ordinary code.

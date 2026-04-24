@@ -1,0 +1,162 @@
+# Module Selection
+
+
+
+Yieldless is easiest to adopt when you choose one small module at the boundary where the pain appears. You do not need to move an application into a framework runtime. Keep ordinary TypeScript, add tuple and cancellation helpers where they remove noise, and stop there.
+
+The capability map [#the-capability-map]
+
+| Work you are doing                           | Start with               | Why                                                                |
+| -------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |
+| Convert a promise or sync throw into a tuple | `yieldless/error`        | Establishes the `[error, value]` shape.                            |
+| Transform or chain tuples                    | `yieldless/result`       | Removes repetitive branch plumbing without a DSL.                  |
+| Run related promise work together            | `yieldless/task`         | Shared `AbortSignal` and sibling failure cleanup.                  |
+| Run tuple tasks in parallel                  | `yieldless/all`          | Tuple-native `all()`, `race()`, and fixed-list `mapLimit()`.       |
+| Process sync or async streams of values      | `yieldless/iterable`     | `collect()`, sequential `forEach()`, and bounded iterable mapping. |
+| Retry transient tuple failures               | `yieldless/retry`        | Exponential backoff with jitter and abort-aware waits.             |
+| Apply a time budget                          | `yieldless/signal`       | Disposable derived deadline signals.                               |
+| Sleep or poll                                | `yieldless/timer`        | Abort-aware timer utilities without a scheduler.                   |
+| Fetch JSON or inspect HTTP status            | `yieldless/fetch`        | Native fetch with tuple errors, timeouts, and JSON parsing.        |
+| Read process configuration                   | `yieldless/env`          | Required/optional env helpers and schema-backed parsing.           |
+| Validate unknown input                       | `yieldless/schema`       | Adapter for existing schema libraries.                             |
+| Build HTTP JSON handlers                     | `yieldless/router`       | Convert tuple handlers into responses.                             |
+| Cross an Electron IPC boundary               | `yieldless/ipc`          | Tuple serialization and optional renderer-driven cancellation.     |
+| Use Node files or subprocesses               | `yieldless/node`         | Tuple filesystem helpers and subprocess output capture.            |
+| Wait for one event                           | `yieldless/event`        | Abortable `EventTarget` / `EventEmitter` waits.                    |
+| Deduplicate in-flight work                   | `yieldless/singleflight` | Prevent duplicate calls from stampeding the same operation.        |
+| Scope cleanup                                | `yieldless/resource`     | Native `await using` for acquire/release pairs.                    |
+| Bind stable dependencies                     | `yieldless/di`           | Reader-like dependency binding with plain functions.               |
+| Carry request metadata                       | `yieldless/context`      | `AsyncLocalStorage` for request-scoped values and spans.           |
+
+Good adoption path [#good-adoption-path]
+
+Start at the boundary where failures are already expected.
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const [error, user] = await fetchJsonSafe<User>(url, {
+  timeoutMs: 5_000,
+  signal,
+});
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, user] as const;
+```
+
+Then add composition only when the code asks for it.
+
+```ts
+import { fromNullable, mapOk } from "yieldless/result";
+
+return mapOk(
+  fromNullable(user, () => new Error("User not found")),
+  (value) => ({ id: value.id, name: value.name }),
+);
+```
+
+Avoid turning Yieldless into a runtime [#avoid-turning-yieldless-into-a-runtime]
+
+This is possible, but it is not the point:
+
+```ts
+// Avoid: a home-grown mini runtime with hidden policy everywhere.
+const program = pipe(
+  readConfig(),
+  retryEverywhere(),
+  injectGlobals(),
+  runWithHiddenContext(),
+);
+```
+
+Prefer direct code with explicit control flow.
+
+```ts
+const [configError, config] = parseEnvSafe(envSchema);
+if (configError) return [configError, null] as const;
+
+const [userError, user] = await safeRetry(
+  (_attempt, signal) => fetchUser(config.apiUrl, signal),
+  { maxAttempts: 3, signal },
+);
+```
+
+Choosing between similar modules [#choosing-between-similar-modules]
+
+Use `yieldless/all` when you already have a finite list of tuple tasks.
+
+```ts
+await all([
+  (signal) => readPrimary(signal),
+  (signal) => readReplica(signal),
+]);
+```
+
+Use `yieldless/task` when the fan-out is imperative or the children return ordinary promise values.
+
+```ts
+await runTaskGroup(async (group) => {
+  const refs = group.spawn((signal) => loadRefs(signal));
+  const status = group.spawn((signal) => loadStatus(signal));
+
+  return {
+    refs: await refs,
+    status: await status,
+  };
+});
+```
+
+Use `yieldless/iterable` when the input is a stream or async generator.
+
+```ts
+await mapAsyncLimit(readRows(filePath), processRow, {
+  concurrency: 4,
+  signal,
+});
+```
+
+Use `yieldless/singleflight` when duplicate callers ask for the same work at the same time. It is not a cache.
+
+```ts
+const loadRepo = singleFlight(
+  (signal, repoId: string) => readRepository(repoId, signal),
+);
+```
+
+A complete boundary [#a-complete-boundary]
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+import { safeRetry } from "yieldless/retry";
+import { parseSafe } from "yieldless/schema";
+
+export async function loadUserView(input: unknown, signal: AbortSignal) {
+  const [inputError, params] = parseSafe(userParamsSchema, input);
+  if (inputError) return [inputError, null] as const;
+
+  const [userError, user] = await safeRetry(
+    (_attempt, attemptSignal) =>
+      fetchJsonSafe<User>(`/api/users/${params.id}`, {
+        timeoutMs: 5_000,
+        signal: attemptSignal,
+      }),
+    {
+      maxAttempts: 3,
+      signal,
+    },
+  );
+
+  if (userError) return [userError, null] as const;
+
+  return [
+    null,
+    {
+      id: user.id,
+      label: user.name,
+    },
+  ] as const;
+}
+```

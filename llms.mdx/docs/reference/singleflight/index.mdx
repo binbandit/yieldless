@@ -51,3 +51,36 @@ Behavior notes [#behavior-notes]
 * `clear(...args)` aborts and removes one in-flight entry.
 * `clearAll()` aborts and removes every in-flight entry.
 * A parent `signal` aborts the shared operation for every active caller.
+
+Good [#good]
+
+Wrap expensive idempotent reads that often get requested twice at the same time.
+
+```ts
+const loadPullRequest = singleFlight(
+  (signal, owner: string, repo: string, number: number) =>
+    fetchPullRequest(owner, repo, number, signal),
+  {
+    getKey: (owner, repo, number) => `${owner}/${repo}#${String(number)}`,
+  },
+);
+```
+
+Clear entries when a view or process is no longer interested.
+
+```ts
+loadPullRequest.clear(owner, repo, number);
+```
+
+Avoid [#avoid]
+
+Do not use `singleFlight()` as a long-lived cache.
+
+```ts
+const loadUser = singleFlight(readUser);
+
+// Later, expecting this to be cached:
+await loadUser("same-user");
+```
+
+Entries are removed when the in-flight promise settles. Put durable caching in your own data layer.

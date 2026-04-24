@@ -92,3 +92,37 @@ Good fits [#good-fits]
 * Preload bridges that expose only an allowlisted set of channels
 * Desktop apps where you want one consistent error model from UI to subprocess
 * Screens that need to cancel stale in-flight requests when the user navigates away
+
+Good [#good]
+
+Define the contract in one shared type module.
+
+```ts
+type GitContract = {
+  status: IpcProcedure<[repoPath: string], { stdout: string }, SerializedIpcError>;
+  fetch: IpcProcedure<[repoPath: string], { stdout: string }, SerializedIpcError>;
+};
+```
+
+Expose only allowlisted bridge methods from preload code.
+
+```ts
+const bridge = createAbortableIpcBridge(client, [
+  "status",
+  "fetch",
+] as const);
+```
+
+Use abortable IPC for views that can be replaced before the main-process work finishes.
+
+Avoid [#avoid]
+
+Do not throw rich `Error` objects across Electron IPC and expect every property to survive.
+
+```ts
+ipcMain.handle("status", async () => {
+  throw Object.assign(new Error("git failed"), { code: "E_GIT" });
+});
+```
+
+Return tuple errors through Yieldless so they are serialized into clone-safe objects.

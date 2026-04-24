@@ -68,3 +68,32 @@ Why this is friendlier [#why-this-is-friendlier]
 * The first tuple error aborts in-flight work and stops starting new items.
 * A parent `AbortSignal` can cancel the whole batch when the user navigates away.
 * `concurrency` is explicit, so expensive work stays polite by default.
+
+Good variation: stream the input [#good-variation-stream-the-input]
+
+If repositories come from an async source, use `yieldless/iterable` instead of building a large array first.
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [error, summaries] = await mapAsyncLimit(
+  readRepositories(workspacePath),
+  (repository, _index, signal) => inspectRepository(repository, signal),
+  {
+    concurrency: 3,
+    signal,
+  },
+);
+```
+
+Avoid: unbounded fan-out [#avoid-unbounded-fan-out]
+
+```ts
+await Promise.all(
+  repositories.map((repository) =>
+    runCommandSafe("git", ["fetch"], { cwd: repository.path }),
+  ),
+);
+```
+
+That can launch dozens or hundreds of subprocesses. Use `mapLimit()` or `mapAsyncLimit()` so the user’s machine stays responsive.

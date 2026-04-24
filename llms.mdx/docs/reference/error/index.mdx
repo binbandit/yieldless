@@ -45,6 +45,49 @@ Rules of thumb [#rules-of-thumb]
 * Keep the tuple local. Once you have the success value, use the value or fold it with `match()`.
 * Use `unwrap()` only where a thrown exception is genuinely required.
 
+Good [#good]
+
+Wrap the operation that can fail, check the error slot once, then continue with normal values.
+
+```ts
+const [readError, text] = await safeTry(readConfigFile());
+if (readError) {
+  return err(readError);
+}
+
+const [parseError, config] = safeTrySync(() => JSON.parse(text));
+if (parseError) {
+  return err(parseError);
+}
+
+return ok(config);
+```
+
+Use `match()` when crossing into UI state or framework output.
+
+```ts
+const view = match(result, {
+  ok: (user) => ({ status: "ready" as const, user }),
+  err: (error) => ({ status: "failed" as const, message: String(error) }),
+});
+```
+
+Avoid [#avoid]
+
+Do not ignore the error slot just because a type checker lets you.
+
+```ts
+const result = await safeTry(readConfigFile());
+const config = JSON.parse(result[1] as string);
+```
+
+Do not use `unwrap()` as a replacement for tuple handling in service code.
+
+```ts
+const user = unwrap(await safeTry(loadUser(id)));
+return ok(user);
+```
+
 Caveat [#caveat]
 
 <Callout>

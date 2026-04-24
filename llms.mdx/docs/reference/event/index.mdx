@@ -1,0 +1,78 @@
+# yieldless/event
+
+
+
+`yieldless/event` is for the small boundary where callback-style events meet async application code. It waits for one event, cleans up listeners, and can return the result in tuple form.
+
+It supports browser-style `EventTarget` objects and Node-style `EventEmitter` objects without adding an event abstraction of its own.
+
+Exports [#exports]
+
+* `onceEvent(source, eventName, options): Promise<T>`
+* `onceEventSafe(source, eventName, options): Promise<SafeResult<T, E>>`
+* `type OnceEventOptions = { signal?, rejectOn? }`
+* `type EventSourceLike = EventTargetLike | EventEmitterLike`
+
+EventTarget [#eventtarget]
+
+```ts
+import { onceEventSafe } from "yieldless/event";
+
+const [error, event] = await onceEventSafe(button, "click", { signal });
+```
+
+EventEmitter [#eventemitter]
+
+```ts
+import { onceEvent } from "yieldless/event";
+
+const socket = await onceEvent<Socket>(server, "connection", { signal });
+```
+
+For EventEmitter-like sources, `error` events reject the wait by default. Disable or customize that behavior with `rejectOn`.
+
+```ts
+const value = await onceEvent(emitter, "error", {
+  rejectOn: false,
+});
+```
+
+Behavior notes [#behavior-notes]
+
+* Listener cleanup happens on success, rejection, and abort.
+* EventEmitter payloads resolve to the single argument when one argument is emitted, or the full argument array when multiple values are emitted.
+* EventTarget event names must be strings.
+* `onceEventSafe()` wraps success and failure in the normal Yieldless tuple shape.
+
+Good [#good]
+
+Use `onceEventSafe()` when the event wait is one step in a tuple flow.
+
+```ts
+const [error, event] = await onceEventSafe<Event>(socket, "open", {
+  signal,
+});
+
+if (error) return [error, null] as const;
+```
+
+Use `rejectOn` to make domain-specific failure events reject the wait.
+
+```ts
+await onceEvent(stream, "ready", {
+  rejectOn: "close",
+  signal,
+});
+```
+
+Avoid [#avoid]
+
+Do not create one-off promises without listener cleanup.
+
+```ts
+await new Promise((resolve) => {
+  emitter.once("ready", resolve);
+});
+```
+
+That pattern usually forgets abort handling and error-event cleanup.

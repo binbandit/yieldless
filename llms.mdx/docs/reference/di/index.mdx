@@ -42,3 +42,37 @@ Use it for [#use-it-for]
 * Route handlers configured with repositories, loggers, and feature flags
 * CLI commands configured with a filesystem or process adapter
 * Background jobs configured with queues or telemetry sinks
+
+Good [#good]
+
+Put stable dependencies in the first argument and domain inputs after that.
+
+```ts
+type Deps = {
+  readonly logger: { info(message: string): void };
+  readonly users: { find(id: string): Promise<User | null> };
+};
+
+const loadUser = async (deps: Deps, id: string) => {
+  deps.logger.info(`loading ${id}`);
+  return await deps.users.find(id);
+};
+
+export const handler = inject(loadUser, {
+  logger,
+  users,
+});
+```
+
+Avoid [#avoid]
+
+Do not hide dependencies behind a global lookup.
+
+```ts
+const loadUser = async (id: string) => {
+  const users = container.get("users");
+  return await users.find(id);
+};
+```
+
+The point of `inject()` is that the dependency list remains visible and type-checked.

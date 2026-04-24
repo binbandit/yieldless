@@ -5,9 +5,10 @@
 The fastest way to understand Yieldless is to wire the core pieces together:
 
 1. `yieldless/error` to keep failures in tuple form
-2. `yieldless/task` and `yieldless/all` to fan work out and cancel siblings cleanly
-3. `yieldless/retry` to handle noisy infrastructure without leaking timers
-4. `yieldless/signal` to enforce one clear deadline on the whole boundary
+2. `yieldless/result` when tuple branches need light composition
+3. `yieldless/task`, `yieldless/all`, and `yieldless/iterable` to fan work out and cancel siblings cleanly
+4. `yieldless/retry`, `yieldless/signal`, and `yieldless/timer` for resilient async boundaries
+5. Boundary adapters like `yieldless/fetch`, `yieldless/schema`, `yieldless/router`, `yieldless/ipc`, `yieldless/node`, and `yieldless/env`
 
 Install [#install]
 
@@ -32,6 +33,24 @@ if (repoError) {
 ```
 
 That pattern is the center of the library. Every module is designed to fit back into the same `[error, value]` shape.
+
+When a tuple flow grows past one branch, use `yieldless/result` to keep it readable.
+
+```ts
+import { fromNullable, mapOk } from "yieldless/result";
+
+const userResult = fromNullable(
+  repo.owner,
+  () => new Error("Repository owner is missing"),
+);
+
+return mapOk(userResult, (owner) => ({
+  id: repo.id,
+  ownerName: owner.name,
+}));
+```
+
+Keep this modest. If one `if (error)` branch is clearer, use the branch.
 
 Step 2: group related work under one cancellation signal [#step-2-group-related-work-under-one-cancellation-signal]
 
@@ -76,6 +95,18 @@ if (thumbnailError) {
 
 The result order matches the input order, and the first tuple error aborts the remaining in-flight work.
 
+For async streams or generators, reach for `yieldless/iterable` instead of materializing everything first.
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [indexError, indexed] = await mapAsyncLimit(
+  readRepositories(workspacePath),
+  (repository, _index, signal) => indexRepository(repository, signal),
+  { concurrency: 3, signal: requestController.signal },
+);
+```
+
 Step 3: add retries where the outside world is unreliable [#step-3-add-retries-where-the-outside-world-is-unreliable]
 
 Retries should stay close to transport boundaries: HTTP, queues, database connections, and subprocesses that can legitimately fail for transient reasons.
@@ -115,12 +146,42 @@ const [fetchError, payload] = await safeTry(
 );
 ```
 
+If you are calling HTTP JSON APIs, `yieldless/fetch` combines the same ideas:
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const [error, user] = await fetchJsonSafe<User>(`/api/users/${userId}`, {
+  timeoutMs: 5_000,
+  signal: requestController.signal,
+});
+```
+
+If you need to wait for eventual consistency, use `poll()` instead of hand-writing timers.
+
+```ts
+import { poll } from "yieldless/timer";
+
+const [jobError, job] = await poll(
+  (_attempt, signal) => fetchJsonSafe<Job>(jobUrl, { signal }),
+  {
+    intervalMs: 1_000,
+    timeoutMs: 30_000,
+    signal: requestController.signal,
+  },
+);
+```
+
 The package ships adapters for common backend boundaries:
 
+* `yieldless/env` validates startup configuration
+* `yieldless/fetch` wraps HTTP status, JSON parsing, and deadlines
 * `yieldless/schema` keeps validators in tuple form
 * `yieldless/router` turns tuple handlers into HTTP responses
 * `yieldless/ipc` preserves tuple results across Electron IPC
 * `yieldless/node` wraps filesystem and child-process work
+* `yieldless/event` waits for one event with cleanup and abort support
+* `yieldless/singleflight` deduplicates duplicate in-flight work
 
 A full request flow [#a-full-request-flow]
 
@@ -155,6 +216,44 @@ const getUser = honoHandler(async (c) => {
 
 Where to go next [#where-to-go-next]
 
+* Read [Module Selection](/docs/guides/module-selection) when you are deciding which helper fits a specific problem.
 * Read [Design Rules](/docs/guides/design-rules) before you spread the tuple style across a large codebase.
 * Read [Do and Don't](/docs/guides/do-and-dont) if you are moving a team onto the library and want the conventions to stay sharp.
 * Use the reference section when you already know what module you need.
+
+Common mistakes [#common-mistakes]
+
+Good: keep tuple boundaries explicit [#good-keep-tuple-boundaries-explicit]
+
+```ts
+const [error, user] = await fetchJsonSafe<User>(url, { signal });
+if (error) return [error, null] as const;
+
+return [null, toUserView(user)] as const;
+```
+
+Avoid: carrying tuples through every layer [#avoid-carrying-tuples-through-every-layer]
+
+```ts
+const result = await fetchJsonSafe<User>(url);
+return renderProfile(result);
+```
+
+Most UI and domain code wants ordinary values or ordinary state. Convert at the boundary.
+
+Good: pass cancellation into real I/O [#good-pass-cancellation-into-real-io]
+
+```ts
+await runCommandSafe("git", ["fetch"], {
+  cwd: repoPath,
+  signal,
+});
+```
+
+Avoid: expecting Yieldless to stop work that ignores signals [#avoid-expecting-yieldless-to-stop-work-that-ignores-signals]
+
+```ts
+await runTaskGroup(async (group) => {
+  group.spawn(() => expensiveLoopThatNeverChecksAbort());
+});
+```

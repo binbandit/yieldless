@@ -139,6 +139,51 @@ Why this fits PR review tools well [#why-this-fits-pr-review-tools-well]
 * Cancellation matters because users jump between PRs quickly and the old load should stop being important.
 * The renderer wants stable view state, not a low-level transport shape.
 
+Good additions [#good-additions]
+
+Deduplicate duplicate PR loads while a user is switching tabs or refreshing panels.
+
+```ts
+import { singleFlight } from "yieldless/singleflight";
+
+const loadPullRequestPayload = singleFlight(
+  (signal, owner: string, repo: string, number: number) =>
+    loadPullRequestFromGitHub(owner, repo, number, signal),
+  {
+    getKey: (owner, repo, number) => `${owner}/${repo}#${String(number)}`,
+  },
+);
+```
+
+Use bounded iterable work when processing many files in a diff.
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [diffError, files] = await mapAsyncLimit(
+  github.streamPullRequestFiles(owner, repo, number),
+  (file, _index, signal) => enrichFile(file, signal),
+  {
+    concurrency: 6,
+    signal,
+  },
+);
+```
+
+Avoid [#avoid]
+
+Do not keep tuples as your component model.
+
+```ts
+function PullRequestView(props: {
+  result: SafeResult<PullRequestPayload, SerializedIpcError>;
+}) {
+  // Every child now has to know tuple mechanics.
+}
+```
+
+Fold the tuple once into `idle`, `loading`, `ready`, and `error` state. UI code should speak in screen states.
+
 Rule of thumb [#rule-of-thumb]
 
 <Callout>

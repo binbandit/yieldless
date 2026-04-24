@@ -54,3 +54,42 @@ Behavior notes [#behavior-notes]
 * Non-ok responses return `HttpStatusError` with the original `response` attached.
 * `fetchJsonSafe()` only parses JSON after `fetchSafe()` succeeds.
 * `readJsonSafe()` wraps parser failures in `JsonParseError` instead of throwing.
+
+Good [#good]
+
+Keep HTTP concerns at the HTTP boundary.
+
+```ts
+const [error, user] = await fetchJsonSafe<User>(url, {
+  headers: { accept: "application/json" },
+  timeoutMs: 5_000,
+  signal,
+});
+
+if (error instanceof HttpStatusError && error.status === 404) {
+  return [new NotFoundError("User not found"), null] as const;
+}
+```
+
+Inject a custom `fetch` in tests or runtimes that do not expose global fetch.
+
+```ts
+await fetchJsonSafe(url, {
+  fetch: testFetch,
+});
+```
+
+Avoid [#avoid]
+
+Do not parse JSON before checking status.
+
+```ts
+const response = await fetch(url);
+const body = await response.json();
+
+if (!response.ok) {
+  return [new Error(body.message), null] as const;
+}
+```
+
+Use `fetchSafe()` when you need the raw response and `fetchJsonSafe()` when success means "valid JSON body".

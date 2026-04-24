@@ -37,9 +37,23 @@ return await runTaskGroup(async (group) => {
 <Cards>
   <Card title="Quickstart" href="/docs/guides/quickstart" />
 
+  <Card title="Module Selection" href="/docs/guides/module-selection" />
+
   <Card title="Design Rules" href="/docs/guides/design-rules" />
 
   <Card title="API Reference" href="/docs/reference/error" />
 
   <Card title="Recipes" href="/docs/recipes/resilient-service-flow" />
 </Cards>
+
+What Yieldless covers [#what-yieldless-covers]
+
+Yieldless is intentionally modular. You can adopt one boundary at a time:
+
+* `error` and `result` for tuple creation, folding, and composition
+* `task`, `all`, `iterable`, `retry`, `signal`, and `timer` for async control flow
+* `fetch`, `node`, `event`, and `ipc` for common platform boundaries
+* `schema`, `env`, and `router` for application edges
+* `resource`, `di`, `context`, and `singleflight` for lifecycle and ergonomics
+
+Start with [Module Selection](/docs/guides/module-selection) if you are deciding which piece to reach for first.

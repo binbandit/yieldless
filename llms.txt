@@ -5,6 +5,7 @@
 
 - Guides: undefined
   - [Quickstart](/docs/guides/quickstart): Get a Yieldless application flow working with tuple errors, cancellation, and one realistic boundary.
+  - [Module Selection](/docs/guides/module-selection): Choose the smallest Yieldless module for each kind of application work.
   - [Design Rules](/docs/guides/design-rules): The principles behind Yieldless and the tradeoffs those principles deliberately make.
   - [Do and Don't](/docs/guides/do-and-dont): Practical conventions that keep Yieldless code readable instead of ceremonial.
 - **Reference**
@@ -19,9 +20,11 @@
   - [yieldless/retry](/docs/reference/retry): Exponential backoff with jitter and abort-aware delays.
   - [yieldless/signal](/docs/reference/signal): Deadline helpers for AbortSignal-aware work.
   - [yieldless/timer](/docs/reference/timer): Abort-aware sleep and polling helpers built on native timers.
+  - [yieldless/event](/docs/reference/event): Await one EventTarget or EventEmitter event with abort-aware cleanup.
   - [yieldless/fetch](/docs/reference/fetch): Native fetch helpers with tuple errors, timeouts, status checks, and JSON parsing.
   - [yieldless/context](/docs/reference/context): AsyncLocalStorage-based context and a small tracing helper for Node.js.
   - [yieldless/all](/docs/reference/all): Tuple-aware parallel combinators that share cancellation.
+  - [yieldless/iterable](/docs/reference/iterable): Tuple helpers for sync and async iterable workflows.
   - [yieldless/singleflight](/docs/reference/singleflight): Deduplicate concurrent tuple work by key.
   - [yieldless/schema](/docs/reference/schema): Tuple adapters for safeParse(), parse(), safeParseAsync(), and parseAsync() style validators.
   - [yieldless/router](/docs/reference/router): Tuple-returning route handlers with HTTP error mapping.

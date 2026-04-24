@@ -54,3 +54,39 @@ Behavior notes [#behavior-notes]
 * Poll attempts start at `1`.
 * `timeoutMs` uses `yieldless/signal` internally, so timeout errors are `TimeoutError`.
 * The operation receives the same signal that controls the interval wait.
+
+Good [#good]
+
+Use `poll()` for eventual consistency and job status checks.
+
+```ts
+const [error, job] = await poll(
+  async (_attempt, signal) => {
+    const [error, current] = await fetchJsonSafe<Job>(jobUrl, { signal });
+    if (error) return [error, null];
+
+    return current.state === "ready"
+      ? [null, current] as const
+      : [new Error("Job is not ready"), null] as const;
+  },
+  {
+    intervalMs: 1_000,
+    timeoutMs: 30_000,
+    signal,
+  },
+);
+```
+
+Use `sleepSafe()` when a delay is part of tuple-native control flow.
+
+Avoid [#avoid]
+
+Do not write uncancelable timer promises.
+
+```ts
+await new Promise((resolve) => {
+  setTimeout(resolve, 1_000);
+});
+```
+
+If a user can navigate away or a request can abort, pass the signal to `sleep()` or `poll()`.

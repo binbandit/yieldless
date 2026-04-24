@@ -50,3 +50,43 @@ What the adapter does [#what-the-adapter-does]
 When this module is enough [#when-this-module-is-enough]
 
 If your framework only needs a `json()` method on the context, this adapter is usually enough.
+
+Good [#good]
+
+Return domain or HTTP errors as tuples and let the adapter serialize them.
+
+```ts
+export const getUser = honoHandler(async (c) => {
+  const [error, user] = await loadUser(c.req.param("id"));
+  if (error) return [error, null];
+
+  if (user === null) {
+    return [new NotFoundError("User not found"), null];
+  }
+
+  return [null, user];
+});
+```
+
+Use `mapError()` when your domain errors are not already `HttpError` instances.
+
+```ts
+honoHandler(handler, {
+  mapError: (error) =>
+    error instanceof DomainValidationError
+      ? new BadRequestError(error.message)
+      : error,
+});
+```
+
+Avoid [#avoid]
+
+Do not throw routine route failures just to let a global error handler find them later.
+
+```ts
+if (user === null) {
+  throw new Error("User not found");
+}
+```
+
+For expected misses, return a tuple error with an explicit HTTP shape.

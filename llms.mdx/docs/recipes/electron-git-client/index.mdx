@@ -86,3 +86,39 @@ Why this boundary feels cleaner [#why-this-boundary-feels-cleaner]
 * The renderer never depends on Electron's lossy thrown-error conversion.
 * The main process can use the same tuple style it uses everywhere else.
 * Long-running Git subprocesses can be canceled as soon as the UI no longer cares about them.
+
+Good additions [#good-additions]
+
+Deduplicate status reads if several panels can request the same repository at once.
+
+```ts
+import { singleFlight } from "yieldless/singleflight";
+
+const getStatus = singleFlight(
+  (signal, directory: string) =>
+    runCommandSafe("git", ["status", "--short"], {
+      cwd: directory,
+      signal,
+    }),
+);
+```
+
+Wait for one app or window event with cleanup.
+
+```ts
+import { onceEventSafe } from "yieldless/event";
+
+const [closeError] = await onceEventSafe(mainWindow, "closed", {
+  signal: windowLifecycle.signal,
+});
+```
+
+Avoid [#avoid]
+
+Do not expose arbitrary IPC channels to the renderer.
+
+```ts
+contextBridge.exposeInMainWorld("ipc", ipcRenderer);
+```
+
+Build a small preload bridge with `createIpcBridge()` or `createAbortableIpcBridge()` so the renderer only sees the operations it is allowed to call.

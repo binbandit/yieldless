@@ -37,12 +37,26 @@ return await runTaskGroup(async (group) => {
 <Cards>
   <Card title="Quickstart" href="/docs/guides/quickstart" />
 
+  <Card title="Module Selection" href="/docs/guides/module-selection" />
+
   <Card title="Design Rules" href="/docs/guides/design-rules" />
 
   <Card title="API Reference" href="/docs/reference/error" />
 
   <Card title="Recipes" href="/docs/recipes/resilient-service-flow" />
 </Cards>
+
+What Yieldless covers [#what-yieldless-covers]
+
+Yieldless is intentionally modular. You can adopt one boundary at a time:
+
+* `error` and `result` for tuple creation, folding, and composition
+* `task`, `all`, `iterable`, `retry`, `signal`, and `timer` for async control flow
+* `fetch`, `node`, `event`, and `ipc` for common platform boundaries
+* `schema`, `env`, and `router` for application edges
+* `resource`, `di`, `context`, and `singleflight` for lifecycle and ergonomics
+
+Start with [Module Selection](/docs/guides/module-selection) if you are deciding which piece to reach for first.
 
 
 # Design Rules
@@ -94,13 +108,20 @@ Use `inject()` for stable dependencies. Use `createContext()` for request-scoped
 
 6\. Pick the smallest module that solves the problem [#6-pick-the-smallest-module-that-solves-the-problem]
 
-| Problem                               | Start with         |
-| ------------------------------------- | ------------------ |
-| You want cleaner async errors         | `yieldless/error`  |
-| You need sibling cancellation         | `yieldless/task`   |
-| You need abort-aware retries          | `yieldless/retry`  |
-| You want typed route handlers         | `yieldless/router` |
-| You are building an Electron boundary | `yieldless/ipc`    |
+| Problem                               | Start with                              |
+| ------------------------------------- | --------------------------------------- |
+| You want cleaner async errors         | `yieldless/error`                       |
+| You want to transform tuple values    | `yieldless/result`                      |
+| You need sibling cancellation         | `yieldless/task`                        |
+| You need bounded batch work           | `yieldless/all` or `yieldless/iterable` |
+| You need abort-aware retries          | `yieldless/retry`                       |
+| You need a firm deadline              | `yieldless/signal`                      |
+| You need polling or sleep             | `yieldless/timer`                       |
+| You need HTTP JSON with deadlines     | `yieldless/fetch`                       |
+| You need startup config               | `yieldless/env`                         |
+| You want typed route handlers         | `yieldless/router`                      |
+| You are building an Electron boundary | `yieldless/ipc`                         |
+| You need in-flight deduplication      | `yieldless/singleflight`                |
 
 7\. Re-throw only at the boundary that needs it [#7-re-throw-only-at-the-boundary-that-needs-it]
 
@@ -114,6 +135,28 @@ await transaction(async () => {
   return unwrap(result);
 });
 ```
+
+8\. Prefer adapters over replacements [#8-prefer-adapters-over-replacements]
+
+Yieldless should sit beside the tools teams already like.
+
+* Use your schema library, adapt it with `yieldless/schema`.
+* Use platform `fetch`, wrap it with `yieldless/fetch`.
+* Use Hono-style handlers, adapt tuple results with `yieldless/router`.
+* Use Electron IPC, preserve tuple results with `yieldless/ipc`.
+
+9\. Keep pressure explicit [#9-keep-pressure-explicit]
+
+When work can fan out, make the pressure control visible in code.
+
+```ts
+await mapLimit(repositories, refreshRepository, {
+  concurrency: 4,
+  signal,
+});
+```
+
+That one option is often the difference between a helpful tool and a machine that feels frozen.
 
 
 # Do and Don't
@@ -140,6 +183,23 @@ const [parseError, config] = safeTrySync(() => JSON.parse(configText));
 if (parseError) return [parseError, null];
 ```
 
+✓ Use result helpers when they remove branch noise. [#-use-result-helpers-when-they-remove-branch-noise]
+
+```ts
+return mapOk(
+  fromNullable(user, () => new NotFoundError("User not found")),
+  toUserView,
+);
+```
+
+✗ Build a pipeline because it feels more abstract. [#-build-a-pipeline-because-it-feels-more-abstract]
+
+```ts
+return andThen(andThen(andThen(result, a), b), c);
+```
+
+If the branch reads better, use the branch.
+
 Cancellation [#cancellation]
 
 ✓ Pass the signal all the way into the I/O API. [#-pass-the-signal-all-the-way-into-the-io-api]
@@ -160,6 +220,40 @@ Network timeouts, brief lock contentions, and flaky subprocess startup are reaso
 
 If the request shape is bad on attempt one, it will still be bad on attempt three.
 
+Timeouts and timers [#timeouts-and-timers]
+
+✓ Use one deadline signal for the whole boundary. [#-use-one-deadline-signal-for-the-whole-boundary]
+
+```ts
+const [error, response] = await fetchJsonSafe(url, {
+  timeoutMs: 5_000,
+  signal,
+});
+```
+
+✗ Scatter unrelated setTimeout calls through business logic. [#-scatter-unrelated-settimeout-calls-through-business-logic]
+
+Timers without abort handling tend to outlive the work they were created for.
+
+Parallel work [#parallel-work]
+
+✓ Put a ceiling on list-shaped work. [#-put-a-ceiling-on-list-shaped-work]
+
+```ts
+await mapAsyncLimit(readRows(file), processRow, {
+  concurrency: 4,
+  signal,
+});
+```
+
+✗ Start one promise for every item in a large collection. [#-start-one-promise-for-every-item-in-a-large-collection]
+
+```ts
+await Promise.all(rows.map(processRow));
+```
+
+Small lists are fine. Unknown or user-sized lists need pressure control.
+
 Dependency injection [#dependency-injection]
 
 ✓ Bind stable dependencies at the edge. [#-bind-stable-dependencies-at-the-edge]
@@ -169,6 +263,18 @@ Loggers, repositories, mailers, and feature flags are good candidates for `injec
 ✗ Build a hidden service locator around it. [#-build-a-hidden-service-locator-around-it]
 
 If the dependencies are not obvious from the function signature, the code gets harder to review.
+
+Configuration [#configuration]
+
+✓ Parse environment once. [#-parse-environment-once]
+
+```ts
+const [error, config] = parseEnvSafe(configSchema);
+```
+
+✗ Read `process.env` from deep application code. [#-read-processenv-from-deep-application-code]
+
+It makes tests harder and hides what the function actually needs.
 
 Context [#context]
 
@@ -186,6 +292,191 @@ Boundaries [#boundaries]
   A good rule of thumb: tuples are for work you expect to fail sometimes, thrown exceptions are for code that truly cannot continue. If a boundary requires exceptions, convert at that one spot with `unwrap()` and move on.
 </Callout>
 
+IPC and UI state [#ipc-and-ui-state]
+
+✓ Keep tuples at transport and service boundaries. [#-keep-tuples-at-transport-and-service-boundaries]
+
+```ts
+const result = await window.gitBridge.withSignal.status(signal, repoPath);
+```
+
+✓ Convert tuples into view state before rendering. [#-convert-tuples-into-view-state-before-rendering]
+
+```ts
+return match(result, {
+  ok: (data) => ({ kind: "ready" as const, data }),
+  err: (error) => ({ kind: "error" as const, message: error.message }),
+});
+```
+
+✗ Pass raw tuple results through every component prop. [#-pass-raw-tuple-results-through-every-component-prop]
+
+React, Vue, and Svelte components are usually clearer with domain-specific screen state.
+
+
+# Module Selection
+
+
+
+Yieldless is easiest to adopt when you choose one small module at the boundary where the pain appears. You do not need to move an application into a framework runtime. Keep ordinary TypeScript, add tuple and cancellation helpers where they remove noise, and stop there.
+
+The capability map [#the-capability-map]
+
+| Work you are doing                           | Start with               | Why                                                                |
+| -------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |
+| Convert a promise or sync throw into a tuple | `yieldless/error`        | Establishes the `[error, value]` shape.                            |
+| Transform or chain tuples                    | `yieldless/result`       | Removes repetitive branch plumbing without a DSL.                  |
+| Run related promise work together            | `yieldless/task`         | Shared `AbortSignal` and sibling failure cleanup.                  |
+| Run tuple tasks in parallel                  | `yieldless/all`          | Tuple-native `all()`, `race()`, and fixed-list `mapLimit()`.       |
+| Process sync or async streams of values      | `yieldless/iterable`     | `collect()`, sequential `forEach()`, and bounded iterable mapping. |
+| Retry transient tuple failures               | `yieldless/retry`        | Exponential backoff with jitter and abort-aware waits.             |
+| Apply a time budget                          | `yieldless/signal`       | Disposable derived deadline signals.                               |
+| Sleep or poll                                | `yieldless/timer`        | Abort-aware timer utilities without a scheduler.                   |
+| Fetch JSON or inspect HTTP status            | `yieldless/fetch`        | Native fetch with tuple errors, timeouts, and JSON parsing.        |
+| Read process configuration                   | `yieldless/env`          | Required/optional env helpers and schema-backed parsing.           |
+| Validate unknown input                       | `yieldless/schema`       | Adapter for existing schema libraries.                             |
+| Build HTTP JSON handlers                     | `yieldless/router`       | Convert tuple handlers into responses.                             |
+| Cross an Electron IPC boundary               | `yieldless/ipc`          | Tuple serialization and optional renderer-driven cancellation.     |
+| Use Node files or subprocesses               | `yieldless/node`         | Tuple filesystem helpers and subprocess output capture.            |
+| Wait for one event                           | `yieldless/event`        | Abortable `EventTarget` / `EventEmitter` waits.                    |
+| Deduplicate in-flight work                   | `yieldless/singleflight` | Prevent duplicate calls from stampeding the same operation.        |
+| Scope cleanup                                | `yieldless/resource`     | Native `await using` for acquire/release pairs.                    |
+| Bind stable dependencies                     | `yieldless/di`           | Reader-like dependency binding with plain functions.               |
+| Carry request metadata                       | `yieldless/context`      | `AsyncLocalStorage` for request-scoped values and spans.           |
+
+Good adoption path [#good-adoption-path]
+
+Start at the boundary where failures are already expected.
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const [error, user] = await fetchJsonSafe<User>(url, {
+  timeoutMs: 5_000,
+  signal,
+});
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, user] as const;
+```
+
+Then add composition only when the code asks for it.
+
+```ts
+import { fromNullable, mapOk } from "yieldless/result";
+
+return mapOk(
+  fromNullable(user, () => new Error("User not found")),
+  (value) => ({ id: value.id, name: value.name }),
+);
+```
+
+Avoid turning Yieldless into a runtime [#avoid-turning-yieldless-into-a-runtime]
+
+This is possible, but it is not the point:
+
+```ts
+// Avoid: a home-grown mini runtime with hidden policy everywhere.
+const program = pipe(
+  readConfig(),
+  retryEverywhere(),
+  injectGlobals(),
+  runWithHiddenContext(),
+);
+```
+
+Prefer direct code with explicit control flow.
+
+```ts
+const [configError, config] = parseEnvSafe(envSchema);
+if (configError) return [configError, null] as const;
+
+const [userError, user] = await safeRetry(
+  (_attempt, signal) => fetchUser(config.apiUrl, signal),
+  { maxAttempts: 3, signal },
+);
+```
+
+Choosing between similar modules [#choosing-between-similar-modules]
+
+Use `yieldless/all` when you already have a finite list of tuple tasks.
+
+```ts
+await all([
+  (signal) => readPrimary(signal),
+  (signal) => readReplica(signal),
+]);
+```
+
+Use `yieldless/task` when the fan-out is imperative or the children return ordinary promise values.
+
+```ts
+await runTaskGroup(async (group) => {
+  const refs = group.spawn((signal) => loadRefs(signal));
+  const status = group.spawn((signal) => loadStatus(signal));
+
+  return {
+    refs: await refs,
+    status: await status,
+  };
+});
+```
+
+Use `yieldless/iterable` when the input is a stream or async generator.
+
+```ts
+await mapAsyncLimit(readRows(filePath), processRow, {
+  concurrency: 4,
+  signal,
+});
+```
+
+Use `yieldless/singleflight` when duplicate callers ask for the same work at the same time. It is not a cache.
+
+```ts
+const loadRepo = singleFlight(
+  (signal, repoId: string) => readRepository(repoId, signal),
+);
+```
+
+A complete boundary [#a-complete-boundary]
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+import { safeRetry } from "yieldless/retry";
+import { parseSafe } from "yieldless/schema";
+
+export async function loadUserView(input: unknown, signal: AbortSignal) {
+  const [inputError, params] = parseSafe(userParamsSchema, input);
+  if (inputError) return [inputError, null] as const;
+
+  const [userError, user] = await safeRetry(
+    (_attempt, attemptSignal) =>
+      fetchJsonSafe<User>(`/api/users/${params.id}`, {
+        timeoutMs: 5_000,
+        signal: attemptSignal,
+      }),
+    {
+      maxAttempts: 3,
+      signal,
+    },
+  );
+
+  if (userError) return [userError, null] as const;
+
+  return [
+    null,
+    {
+      id: user.id,
+      label: user.name,
+    },
+  ] as const;
+}
+```
+
 
 # Quickstart
 
@@ -194,9 +485,10 @@ Boundaries [#boundaries]
 The fastest way to understand Yieldless is to wire the core pieces together:
 
 1. `yieldless/error` to keep failures in tuple form
-2. `yieldless/task` and `yieldless/all` to fan work out and cancel siblings cleanly
-3. `yieldless/retry` to handle noisy infrastructure without leaking timers
-4. `yieldless/signal` to enforce one clear deadline on the whole boundary
+2. `yieldless/result` when tuple branches need light composition
+3. `yieldless/task`, `yieldless/all`, and `yieldless/iterable` to fan work out and cancel siblings cleanly
+4. `yieldless/retry`, `yieldless/signal`, and `yieldless/timer` for resilient async boundaries
+5. Boundary adapters like `yieldless/fetch`, `yieldless/schema`, `yieldless/router`, `yieldless/ipc`, `yieldless/node`, and `yieldless/env`
 
 Install [#install]
 
@@ -221,6 +513,24 @@ if (repoError) {
 ```
 
 That pattern is the center of the library. Every module is designed to fit back into the same `[error, value]` shape.
+
+When a tuple flow grows past one branch, use `yieldless/result` to keep it readable.
+
+```ts
+import { fromNullable, mapOk } from "yieldless/result";
+
+const userResult = fromNullable(
+  repo.owner,
+  () => new Error("Repository owner is missing"),
+);
+
+return mapOk(userResult, (owner) => ({
+  id: repo.id,
+  ownerName: owner.name,
+}));
+```
+
+Keep this modest. If one `if (error)` branch is clearer, use the branch.
 
 Step 2: group related work under one cancellation signal [#step-2-group-related-work-under-one-cancellation-signal]
 
@@ -265,6 +575,18 @@ if (thumbnailError) {
 
 The result order matches the input order, and the first tuple error aborts the remaining in-flight work.
 
+For async streams or generators, reach for `yieldless/iterable` instead of materializing everything first.
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [indexError, indexed] = await mapAsyncLimit(
+  readRepositories(workspacePath),
+  (repository, _index, signal) => indexRepository(repository, signal),
+  { concurrency: 3, signal: requestController.signal },
+);
+```
+
 Step 3: add retries where the outside world is unreliable [#step-3-add-retries-where-the-outside-world-is-unreliable]
 
 Retries should stay close to transport boundaries: HTTP, queues, database connections, and subprocesses that can legitimately fail for transient reasons.
@@ -304,12 +626,42 @@ const [fetchError, payload] = await safeTry(
 );
 ```
 
+If you are calling HTTP JSON APIs, `yieldless/fetch` combines the same ideas:
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const [error, user] = await fetchJsonSafe<User>(`/api/users/${userId}`, {
+  timeoutMs: 5_000,
+  signal: requestController.signal,
+});
+```
+
+If you need to wait for eventual consistency, use `poll()` instead of hand-writing timers.
+
+```ts
+import { poll } from "yieldless/timer";
+
+const [jobError, job] = await poll(
+  (_attempt, signal) => fetchJsonSafe<Job>(jobUrl, { signal }),
+  {
+    intervalMs: 1_000,
+    timeoutMs: 30_000,
+    signal: requestController.signal,
+  },
+);
+```
+
 The package ships adapters for common backend boundaries:
 
+* `yieldless/env` validates startup configuration
+* `yieldless/fetch` wraps HTTP status, JSON parsing, and deadlines
 * `yieldless/schema` keeps validators in tuple form
 * `yieldless/router` turns tuple handlers into HTTP responses
 * `yieldless/ipc` preserves tuple results across Electron IPC
 * `yieldless/node` wraps filesystem and child-process work
+* `yieldless/event` waits for one event with cleanup and abort support
+* `yieldless/singleflight` deduplicates duplicate in-flight work
 
 A full request flow [#a-full-request-flow]
 
@@ -344,9 +696,47 @@ const getUser = honoHandler(async (c) => {
 
 Where to go next [#where-to-go-next]
 
+* Read [Module Selection](/docs/guides/module-selection) when you are deciding which helper fits a specific problem.
 * Read [Design Rules](/docs/guides/design-rules) before you spread the tuple style across a large codebase.
 * Read [Do and Don't](/docs/guides/do-and-dont) if you are moving a team onto the library and want the conventions to stay sharp.
 * Use the reference section when you already know what module you need.
+
+Common mistakes [#common-mistakes]
+
+Good: keep tuple boundaries explicit [#good-keep-tuple-boundaries-explicit]
+
+```ts
+const [error, user] = await fetchJsonSafe<User>(url, { signal });
+if (error) return [error, null] as const;
+
+return [null, toUserView(user)] as const;
+```
+
+Avoid: carrying tuples through every layer [#avoid-carrying-tuples-through-every-layer]
+
+```ts
+const result = await fetchJsonSafe<User>(url);
+return renderProfile(result);
+```
+
+Most UI and domain code wants ordinary values or ordinary state. Convert at the boundary.
+
+Good: pass cancellation into real I/O [#good-pass-cancellation-into-real-io]
+
+```ts
+await runCommandSafe("git", ["fetch"], {
+  cwd: repoPath,
+  signal,
+});
+```
+
+Avoid: expecting Yieldless to stop work that ignores signals [#avoid-expecting-yieldless-to-stop-work-that-ignores-signals]
+
+```ts
+await runTaskGroup(async (group) => {
+  group.spawn(() => expensiveLoopThatNeverChecksAbort());
+});
+```
 
 
 # Bounded Batch Work
@@ -419,6 +809,35 @@ Why this is friendlier [#why-this-is-friendlier]
 * The first tuple error aborts in-flight work and stops starting new items.
 * A parent `AbortSignal` can cancel the whole batch when the user navigates away.
 * `concurrency` is explicit, so expensive work stays polite by default.
+
+Good variation: stream the input [#good-variation-stream-the-input]
+
+If repositories come from an async source, use `yieldless/iterable` instead of building a large array first.
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [error, summaries] = await mapAsyncLimit(
+  readRepositories(workspacePath),
+  (repository, _index, signal) => inspectRepository(repository, signal),
+  {
+    concurrency: 3,
+    signal,
+  },
+);
+```
+
+Avoid: unbounded fan-out [#avoid-unbounded-fan-out]
+
+```ts
+await Promise.all(
+  repositories.map((repository) =>
+    runCommandSafe("git", ["fetch"], { cwd: repository.path }),
+  ),
+);
+```
+
+That can launch dozens or hundreds of subprocesses. Use `mapLimit()` or `mapAsyncLimit()` so the user’s machine stays responsive.
 
 
 # Electron Git Client
@@ -509,6 +928,42 @@ Why this boundary feels cleaner [#why-this-boundary-feels-cleaner]
 * The renderer never depends on Electron's lossy thrown-error conversion.
 * The main process can use the same tuple style it uses everywhere else.
 * Long-running Git subprocesses can be canceled as soon as the UI no longer cares about them.
+
+Good additions [#good-additions]
+
+Deduplicate status reads if several panels can request the same repository at once.
+
+```ts
+import { singleFlight } from "yieldless/singleflight";
+
+const getStatus = singleFlight(
+  (signal, directory: string) =>
+    runCommandSafe("git", ["status", "--short"], {
+      cwd: directory,
+      signal,
+    }),
+);
+```
+
+Wait for one app or window event with cleanup.
+
+```ts
+import { onceEventSafe } from "yieldless/event";
+
+const [closeError] = await onceEventSafe(mainWindow, "closed", {
+  signal: windowLifecycle.signal,
+});
+```
+
+Avoid [#avoid]
+
+Do not expose arbitrary IPC channels to the renderer.
+
+```ts
+contextBridge.exposeInMainWorld("ipc", ipcRenderer);
+```
+
+Build a small preload bridge with `createIpcBridge()` or `createAbortableIpcBridge()` so the renderer only sees the operations it is allowed to call.
 
 
 # Electron PR Review Workbench
@@ -652,6 +1107,51 @@ Why this fits PR review tools well [#why-this-fits-pr-review-tools-well]
 * Cancellation matters because users jump between PRs quickly and the old load should stop being important.
 * The renderer wants stable view state, not a low-level transport shape.
 
+Good additions [#good-additions]
+
+Deduplicate duplicate PR loads while a user is switching tabs or refreshing panels.
+
+```ts
+import { singleFlight } from "yieldless/singleflight";
+
+const loadPullRequestPayload = singleFlight(
+  (signal, owner: string, repo: string, number: number) =>
+    loadPullRequestFromGitHub(owner, repo, number, signal),
+  {
+    getKey: (owner, repo, number) => `${owner}/${repo}#${String(number)}`,
+  },
+);
+```
+
+Use bounded iterable work when processing many files in a diff.
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [diffError, files] = await mapAsyncLimit(
+  github.streamPullRequestFiles(owner, repo, number),
+  (file, _index, signal) => enrichFile(file, signal),
+  {
+    concurrency: 6,
+    signal,
+  },
+);
+```
+
+Avoid [#avoid]
+
+Do not keep tuples as your component model.
+
+```ts
+function PullRequestView(props: {
+  result: SafeResult<PullRequestPayload, SerializedIpcError>;
+}) {
+  // Every child now has to know tuple mechanics.
+}
+```
+
+Fold the tuple once into `idle`, `loading`, `ready`, and `error` state. UI code should speak in screen states.
+
 Rule of thumb [#rule-of-thumb]
 
 <Callout>
@@ -670,6 +1170,7 @@ This recipe shows the shape Yieldless is best at: an HTTP request that validates
 The moving parts [#the-moving-parts]
 
 * `yieldless/schema` validates input without throwing
+* `yieldless/fetch` keeps HTTP calls in tuple form
 * `yieldless/retry` handles transient I/O noise
 * `yieldless/task` keeps sibling work under one cancellation signal
 * `yieldless/router` turns tuple results into a plain response
@@ -723,6 +1224,43 @@ Why this holds up well in production [#why-this-holds-up-well-in-production]
 * If `loadRefs()` fails, `loadStatus()` is aborted immediately.
 * Retry timers are cancellable because they run through `AbortSignal`.
 * The handler body stays linear. There is no framework-specific DSL to learn.
+
+Good variation: add a remote dependency [#good-variation-add-a-remote-dependency]
+
+```ts
+import { fetchJsonSafe, HttpStatusError } from "yieldless/fetch";
+
+const [metadataError, metadata] = await safeRetry(
+  (_attempt, signal) =>
+    fetchJsonSafe<RepositoryMetadata>(metadataUrl(repo.id), {
+      timeoutMs: 3_000,
+      signal,
+    }),
+  {
+    maxAttempts: 3,
+    shouldRetry: (error) =>
+      !(error instanceof HttpStatusError) || error.status >= 500,
+  },
+);
+
+if (metadataError) {
+  return [metadataError, null];
+}
+```
+
+The retry policy is attached to the flaky network call, not to the whole request.
+
+Avoid: retrying the whole handler [#avoid-retrying-the-whole-handler]
+
+```ts
+export const getRepository = honoHandler((c) =>
+  safeRetry(() => loadWholeRepositoryResponse(c), {
+    maxAttempts: 3,
+  }),
+);
+```
+
+That repeats validation, routing decisions, and any side effects. Retry the noisy boundary instead.
 
 Rules worth keeping [#rules-worth-keeping]
 
@@ -788,6 +1326,49 @@ When to prefer runTaskGroup() instead [#when-to-prefer-runtaskgroup-instead]
 
 Use `all()`, `race()`, and `mapLimit()` when the work is already tuple-native. Use `runTaskGroup()` when you want imperative fan-out and regular promise values.
 
+Good [#good]
+
+Use `all()` for a small, fixed set of independent tuple tasks.
+
+```ts
+const [error, [profile, permissions]] = await all([
+  (signal) => loadProfile(userId, signal),
+  (signal) => loadPermissions(userId, signal),
+]);
+```
+
+Use `mapLimit()` when a list could be large or expensive.
+
+```ts
+const [error, summaries] = await mapLimit(
+  repositories,
+  (repo, _index, signal) => readSummary(repo.path, signal),
+  { concurrency: 4, signal },
+);
+```
+
+Use `race()` when the first success or first failure should settle the operation.
+
+```ts
+const result = await race([
+  (signal) => readPrimary(signal),
+  (signal) => readReplica(signal),
+]);
+```
+
+Avoid [#avoid]
+
+Do not pass work that ignores the signal and expect cancellation to be immediate.
+
+```ts
+await all([
+  async () => safeTry(expensiveCpuLoop()),
+  async () => safeTry(readRemoteData()),
+]);
+```
+
+Do not use `all()` for thousands of items. Use `mapLimit()` or `yieldless/iterable` so you can control pressure.
+
 
 # yieldless/context
 
@@ -839,6 +1420,41 @@ Do not use it for [#do-not-use-it-for]
 * Feature flags that are known at startup
 * Anything that would be clearer as a regular function argument
 
+Good [#good]
+
+Use context for metadata that naturally follows asynchronous work.
+
+```ts
+const requestContext = createContext<{ requestId: string }>();
+
+await requestContext.run({ requestId }, async () => {
+  logger.info(requestContext.expect().requestId);
+  await handleRequest();
+});
+```
+
+Use `bind()` when a callback will run later but should keep the current store.
+
+```ts
+const onComplete = requestContext.bind(() => {
+  logger.info(requestContext.expect().requestId);
+});
+```
+
+Avoid [#avoid]
+
+Do not use async context as a dependency container.
+
+```ts
+const appContext = createContext<{ database: Database; logger: Logger }>();
+
+export async function loadUser(id: string) {
+  return await appContext.expect().database.findUser(id);
+}
+```
+
+Stable dependencies are clearer as function parameters or `yieldless/di` inputs.
+
 
 # yieldless/di
 
@@ -884,6 +1500,40 @@ Use it for [#use-it-for]
 * Route handlers configured with repositories, loggers, and feature flags
 * CLI commands configured with a filesystem or process adapter
 * Background jobs configured with queues or telemetry sinks
+
+Good [#good]
+
+Put stable dependencies in the first argument and domain inputs after that.
+
+```ts
+type Deps = {
+  readonly logger: { info(message: string): void };
+  readonly users: { find(id: string): Promise<User | null> };
+};
+
+const loadUser = async (deps: Deps, id: string) => {
+  deps.logger.info(`loading ${id}`);
+  return await deps.users.find(id);
+};
+
+export const handler = inject(loadUser, {
+  logger,
+  users,
+});
+```
+
+Avoid [#avoid]
+
+Do not hide dependencies behind a global lookup.
+
+```ts
+const loadUser = async (id: string) => {
+  const users = container.get("users");
+  return await users.find(id);
+};
+```
+
+The point of `inject()` is that the dependency list remains visible and type-checked.
 
 
 # yieldless/env
@@ -935,6 +1585,42 @@ Behavior notes [#behavior-notes]
 * `EnvVarError.code` is either `ERR_ENV_MISSING` or `ERR_ENV_EMPTY`.
 * `readOptionalEnv()` returns `[null, undefined]` for missing values but still rejects empty strings unless `allowEmpty` is enabled.
 
+Good [#good]
+
+Validate configuration once at startup or at the outer service boundary.
+
+```ts
+const [error, config] = parseEnvSafe(
+  configSchema,
+  pickEnv(process.env, ["DATABASE_URL", "PORT", "NODE_ENV"] as const),
+);
+
+if (error) {
+  console.error(error);
+  process.exitCode = 1;
+}
+```
+
+Use `readEnv()` for one-off scripts where a full schema would add noise.
+
+```ts
+const [tokenError, token] = readEnv(process.env, "GITHUB_TOKEN");
+if (tokenError) return [tokenError, null] as const;
+```
+
+Avoid [#avoid]
+
+Do not read `process.env` deep inside business logic.
+
+```ts
+export async function sendEmail(user: User) {
+  const apiKey = process.env.MAILER_API_KEY;
+  return mailer.send(apiKey, user.email);
+}
+```
+
+Parse once, then pass config explicitly or inject it at the edge.
+
 
 # yieldless/error
 
@@ -983,11 +1669,134 @@ Rules of thumb [#rules-of-thumb]
 * Keep the tuple local. Once you have the success value, use the value or fold it with `match()`.
 * Use `unwrap()` only where a thrown exception is genuinely required.
 
+Good [#good]
+
+Wrap the operation that can fail, check the error slot once, then continue with normal values.
+
+```ts
+const [readError, text] = await safeTry(readConfigFile());
+if (readError) {
+  return err(readError);
+}
+
+const [parseError, config] = safeTrySync(() => JSON.parse(text));
+if (parseError) {
+  return err(parseError);
+}
+
+return ok(config);
+```
+
+Use `match()` when crossing into UI state or framework output.
+
+```ts
+const view = match(result, {
+  ok: (user) => ({ status: "ready" as const, user }),
+  err: (error) => ({ status: "failed" as const, message: String(error) }),
+});
+```
+
+Avoid [#avoid]
+
+Do not ignore the error slot just because a type checker lets you.
+
+```ts
+const result = await safeTry(readConfigFile());
+const config = JSON.parse(result[1] as string);
+```
+
+Do not use `unwrap()` as a replacement for tuple handling in service code.
+
+```ts
+const user = unwrap(await safeTry(loadUser(id)));
+return ok(user);
+```
+
 Caveat [#caveat]
 
 <Callout>
   `SafeResult` uses null sentinels. If your success value is literally `null`, the runtime tuple is still correct, but the type system cannot fully discriminate that case.
 </Callout>
+
+
+# yieldless/event
+
+
+
+`yieldless/event` is for the small boundary where callback-style events meet async application code. It waits for one event, cleans up listeners, and can return the result in tuple form.
+
+It supports browser-style `EventTarget` objects and Node-style `EventEmitter` objects without adding an event abstraction of its own.
+
+Exports [#exports]
+
+* `onceEvent(source, eventName, options): Promise<T>`
+* `onceEventSafe(source, eventName, options): Promise<SafeResult<T, E>>`
+* `type OnceEventOptions = { signal?, rejectOn? }`
+* `type EventSourceLike = EventTargetLike | EventEmitterLike`
+
+EventTarget [#eventtarget]
+
+```ts
+import { onceEventSafe } from "yieldless/event";
+
+const [error, event] = await onceEventSafe(button, "click", { signal });
+```
+
+EventEmitter [#eventemitter]
+
+```ts
+import { onceEvent } from "yieldless/event";
+
+const socket = await onceEvent<Socket>(server, "connection", { signal });
+```
+
+For EventEmitter-like sources, `error` events reject the wait by default. Disable or customize that behavior with `rejectOn`.
+
+```ts
+const value = await onceEvent(emitter, "error", {
+  rejectOn: false,
+});
+```
+
+Behavior notes [#behavior-notes]
+
+* Listener cleanup happens on success, rejection, and abort.
+* EventEmitter payloads resolve to the single argument when one argument is emitted, or the full argument array when multiple values are emitted.
+* EventTarget event names must be strings.
+* `onceEventSafe()` wraps success and failure in the normal Yieldless tuple shape.
+
+Good [#good]
+
+Use `onceEventSafe()` when the event wait is one step in a tuple flow.
+
+```ts
+const [error, event] = await onceEventSafe<Event>(socket, "open", {
+  signal,
+});
+
+if (error) return [error, null] as const;
+```
+
+Use `rejectOn` to make domain-specific failure events reject the wait.
+
+```ts
+await onceEvent(stream, "ready", {
+  rejectOn: "close",
+  signal,
+});
+```
+
+Avoid [#avoid]
+
+Do not create one-off promises without listener cleanup.
+
+```ts
+await new Promise((resolve) => {
+  emitter.once("ready", resolve);
+});
+```
+
+That pattern usually forgets abort handling and error-event cleanup.
 
 
 # yieldless/fetch
@@ -1046,6 +1855,45 @@ Behavior notes [#behavior-notes]
 * Non-ok responses return `HttpStatusError` with the original `response` attached.
 * `fetchJsonSafe()` only parses JSON after `fetchSafe()` succeeds.
 * `readJsonSafe()` wraps parser failures in `JsonParseError` instead of throwing.
+
+Good [#good]
+
+Keep HTTP concerns at the HTTP boundary.
+
+```ts
+const [error, user] = await fetchJsonSafe<User>(url, {
+  headers: { accept: "application/json" },
+  timeoutMs: 5_000,
+  signal,
+});
+
+if (error instanceof HttpStatusError && error.status === 404) {
+  return [new NotFoundError("User not found"), null] as const;
+}
+```
+
+Inject a custom `fetch` in tests or runtimes that do not expose global fetch.
+
+```ts
+await fetchJsonSafe(url, {
+  fetch: testFetch,
+});
+```
+
+Avoid [#avoid]
+
+Do not parse JSON before checking status.
+
+```ts
+const response = await fetch(url);
+const body = await response.json();
+
+if (!response.ok) {
+  return [new Error(body.message), null] as const;
+}
+```
+
+Use `fetchSafe()` when you need the raw response and `fetchJsonSafe()` when success means "valid JSON body".
 
 
 # yieldless/ipc
@@ -1143,6 +1991,138 @@ Good fits [#good-fits]
 * Desktop apps where you want one consistent error model from UI to subprocess
 * Screens that need to cancel stale in-flight requests when the user navigates away
 
+Good [#good]
+
+Define the contract in one shared type module.
+
+```ts
+type GitContract = {
+  status: IpcProcedure<[repoPath: string], { stdout: string }, SerializedIpcError>;
+  fetch: IpcProcedure<[repoPath: string], { stdout: string }, SerializedIpcError>;
+};
+```
+
+Expose only allowlisted bridge methods from preload code.
+
+```ts
+const bridge = createAbortableIpcBridge(client, [
+  "status",
+  "fetch",
+] as const);
+```
+
+Use abortable IPC for views that can be replaced before the main-process work finishes.
+
+Avoid [#avoid]
+
+Do not throw rich `Error` objects across Electron IPC and expect every property to survive.
+
+```ts
+ipcMain.handle("status", async () => {
+  throw Object.assign(new Error("git failed"), { code: "E_GIT" });
+});
+```
+
+Return tuple errors through Yieldless so they are serialized into clone-safe objects.
+
+
+# yieldless/iterable
+
+
+
+`yieldless/iterable` handles streams of ordinary JavaScript values without introducing a stream runtime. It works with both `Iterable` and `AsyncIterable`, captures thrown iterator failures as tuples, and forwards `AbortSignal` through workers.
+
+Exports [#exports]
+
+* `collect(iterable, options): Promise<SafeResult<T[], E>>`
+* `forEach(iterable, worker, options): Promise<SafeResult<void, E>>`
+* `mapAsyncLimit(iterable, mapper, options): Promise<SafeResult<Value[], E>>`
+* `type AnyIterable<T> = Iterable<T> | AsyncIterable<T>`
+* `type IterableWorker<Item, E = Error> = (item, index, signal) => SafeResult<void, E> | PromiseLike<SafeResult<void, E>>`
+* `type IterableMapper<Item, Value, E = Error> = (item, index, signal) => SafeResult<Value, E> | PromiseLike<SafeResult<Value, E>>`
+
+Collect [#collect]
+
+```ts
+import { collect } from "yieldless/iterable";
+
+const [error, lines] = await collect(readLines(filePath), { signal });
+```
+
+Sequential work [#sequential-work]
+
+```ts
+import { forEach } from "yieldless/iterable";
+
+const [error] = await forEach(
+  readRows(filePath),
+  async (row, _index, signal) => writeRow(row, signal),
+  { signal },
+);
+```
+
+Bounded mapping [#bounded-mapping]
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [error, thumbnails] = await mapAsyncLimit(
+  readImages(source),
+  (image, _index, signal) => renderThumbnail(image, signal),
+  {
+    concurrency: 4,
+    signal,
+  },
+);
+```
+
+`mapAsyncLimit()` preserves input order in the returned array while keeping only the configured number of mappers active.
+
+Behavior notes [#behavior-notes]
+
+* Iterator throws are captured as tuple errors.
+* Worker and mapper throws are captured as tuple errors.
+* The first tuple error aborts in-flight bounded mapping work.
+* `forEach()` is sequential by design; use `mapAsyncLimit()` for parallelism.
+* `concurrency` must be a positive integer.
+
+Good [#good]
+
+Use `forEach()` when order and backpressure matter more than throughput.
+
+```ts
+const [error] = await forEach(
+  readLogLines(filePath),
+  async (line, index, signal) => writeLine(index, line, signal),
+  { signal },
+);
+```
+
+Use `mapAsyncLimit()` for many independent operations.
+
+```ts
+const [error, results] = await mapAsyncLimit(
+  readRepositories(workspace),
+  (repo, _index, signal) => inspectRepository(repo, signal),
+  { concurrency: 4, signal },
+);
+```
+
+Avoid [#avoid]
+
+Do not materialize a huge async iterable just so you can use array helpers.
+
+```ts
+const rows = [];
+for await (const row of readRows(file)) {
+  rows.push(row);
+}
+
+await Promise.all(rows.map(processRow));
+```
+
+Use `forEach()` or `mapAsyncLimit()` so the iterable can stream and cancellation can stop the work early.
+
 
 # yieldless/node
 
@@ -1201,6 +2181,38 @@ Cancellation [#cancellation]
   If you pass an `AbortSignal`, Yieldless forwards it to Node's native child-process signal handling and waits for the subprocess to close before it settles the wrapper promise.
 </Callout>
 
+Good [#good]
+
+Use filesystem tuple helpers at the file boundary.
+
+```ts
+const [readError, contents] = await readFileSafe(configPath);
+if (readError) return [readError, null] as const;
+```
+
+Use `runCommandSafe()` when non-zero exit status is a normal operational failure.
+
+```ts
+const [error, result] = await runCommandSafe("git", ["diff", "--stat"], {
+  cwd: repoPath,
+  signal,
+});
+
+if (error instanceof CommandError) {
+  logger.warn({ stderr: error.stderr }, "git diff failed");
+}
+```
+
+Avoid [#avoid]
+
+Do not shell-concatenate user input.
+
+```ts
+await runCommandSafe("sh", ["-c", `git -C ${repoPath} status`]);
+```
+
+Pass the executable and args separately so Node handles argument boundaries.
+
 
 # yieldless/resource
 
@@ -1237,6 +2249,36 @@ Important detail [#important-detail]
 <Callout>
   The resource wrapper exposes the underlying value as `.value`. That keeps the disposable handle explicit and avoids pretending that current `await using` syntax can destructure directly into a tuple.
 </Callout>
+
+Good [#good]
+
+Use `acquireResource()` when cleanup must happen even if the body throws.
+
+```ts
+{
+  await using temp = await acquireResource(
+    () => createTempDirectory(),
+    (directory) => rmSafe(directory, { recursive: true, force: true }),
+  );
+
+  await writeBuildArtifacts(temp.value);
+}
+```
+
+Keep the resource lifetime as small as the work that needs it.
+
+Avoid [#avoid]
+
+Do not acquire a resource and hope every return path remembers cleanup.
+
+```ts
+const client = await connect();
+const result = await runJob(client);
+await disconnect(client);
+return result;
+```
+
+Use `await using` when the TypeScript target and runtime support it. Otherwise keep `try` / `finally` explicit.
 
 
 # yieldless/result
@@ -1300,6 +2342,55 @@ When to use it [#when-to-use-it]
 
 Use these helpers when a tuple flow is becoming noisy but still belongs in ordinary TypeScript. If the code is clearer with one `if (error) return [error, null]`, keep the branch.
 
+Good [#good]
+
+Use `fromNullable()` to turn a common domain miss into an explicit tuple.
+
+```ts
+const userResult = fromNullable(
+  await repository.findUser(id),
+  () => new NotFoundError("User not found"),
+);
+```
+
+Use `andThen()` when the second step depends on the first success value.
+
+```ts
+const result = andThen(userResult, (user) =>
+  user.active ? ok(user) : err(new ForbiddenError("User is inactive")),
+);
+```
+
+Use `tapErr()` for logging or telemetry that should not change the result.
+
+```ts
+return tapErr(result, (error) => {
+  logger.warn({ error }, "load user failed");
+});
+```
+
+Avoid [#avoid]
+
+Do not turn a simple branch into a clever pipeline.
+
+```ts
+const result = andThen(
+  andThen(await loadUser(id), validateUser),
+  renderUser,
+);
+```
+
+If the explicit branch is clearer, keep it.
+
+```ts
+const [error, user] = await loadUser(id);
+if (error) return [error, null] as const;
+
+return renderUser(user);
+```
+
+Do not use `toPromise()` in the middle of tuple-native application code. It is for framework boundaries that require rejection.
+
 
 # yieldless/retry
 
@@ -1359,6 +2450,56 @@ Bad retry targets [#bad-retry-targets]
 * Permission errors
 * Business-rule violations that are deterministic
 
+Good [#good]
+
+Retry only the noisy boundary and keep validation outside the loop.
+
+```ts
+const [inputError, input] = parseSafe(schema, rawInput);
+if (inputError) return [inputError, null] as const;
+
+const [error, response] = await safeRetry(
+  (_attempt, signal) => fetchJsonSafe(urlFor(input), { signal }),
+  {
+    maxAttempts: 4,
+    baseDelayMs: 100,
+    signal,
+    shouldRetry: (error) =>
+      !(error instanceof HttpStatusError) || error.status >= 500,
+  },
+);
+```
+
+Use `onRetry()` for logging, metrics, or tests.
+
+```ts
+await safeRetry(operation, {
+  onRetry: ({ attempt, delayMs, error }) => {
+    logger.warn({ attempt, delayMs, error }, "retrying request");
+  },
+});
+```
+
+Avoid [#avoid]
+
+Do not retry an entire request handler when only one transport call is flaky.
+
+```ts
+await safeRetry(
+  () => handleWholeRequest(context),
+  { maxAttempts: 3 },
+);
+```
+
+Do not retry deterministic failures.
+
+```ts
+await safeRetry(
+  () => parseUserInput(input),
+  { maxAttempts: 5 },
+);
+```
+
 
 # yieldless/router
 
@@ -1413,6 +2554,46 @@ When this module is enough [#when-this-module-is-enough]
 
 If your framework only needs a `json()` method on the context, this adapter is usually enough.
 
+Good [#good]
+
+Return domain or HTTP errors as tuples and let the adapter serialize them.
+
+```ts
+export const getUser = honoHandler(async (c) => {
+  const [error, user] = await loadUser(c.req.param("id"));
+  if (error) return [error, null];
+
+  if (user === null) {
+    return [new NotFoundError("User not found"), null];
+  }
+
+  return [null, user];
+});
+```
+
+Use `mapError()` when your domain errors are not already `HttpError` instances.
+
+```ts
+honoHandler(handler, {
+  mapError: (error) =>
+    error instanceof DomainValidationError
+      ? new BadRequestError(error.message)
+      : error,
+});
+```
+
+Avoid [#avoid]
+
+Do not throw routine route failures just to let a global error handler find them later.
+
+```ts
+if (user === null) {
+  throw new Error("User not found");
+}
+```
+
+For expected misses, return a tuple error with an explicit HTTP shape.
+
 
 # yieldless/schema
 
@@ -1459,6 +2640,39 @@ Good fits [#good-fits]
 * Environment parsing
 * Normalizing database payloads
 * Decoding IPC input
+
+Good [#good]
+
+Validate unknown input before it enters domain code.
+
+```ts
+const [error, input] = parseSafe(createUserSchema, await request.json());
+if (error) {
+  return [new ValidationError("Invalid request body", { details: error }), null];
+}
+
+return createUser(input);
+```
+
+Use `parseAsyncSafe()` only when the schema itself performs asynchronous validation.
+
+```ts
+const [error, user] = await parseAsyncSafe(userSchema, input);
+```
+
+Avoid [#avoid]
+
+Do not validate the same data repeatedly in inner functions.
+
+```ts
+function renderUser(input: unknown) {
+  const [error, user] = parseSafe(userSchema, input);
+  if (error) throw error;
+  return user.name;
+}
+```
+
+Validate once at the boundary, then pass typed values through ordinary code.
 
 
 # yieldless/signal
@@ -1532,6 +2746,43 @@ Good fits [#good-fits]
 * Git commands or subprocesses with a firm deadline
 * Any abort-aware operation where you want one shared time budget
 
+Good [#good]
+
+Use `withTimeout()` for one operation.
+
+```ts
+const [error, response] = await safeTry(
+  withTimeout(
+    (signal) => fetch(url, { signal }),
+    { timeoutMs: 5_000, signal: request.signal },
+  ),
+);
+```
+
+Use `createTimeoutSignal()` for a scope of related operations.
+
+```ts
+const deadline = createTimeoutSignal(10_000, { signal });
+
+try {
+  await readProfile(deadline.signal);
+  await readPermissions(deadline.signal);
+} finally {
+  deadline[Symbol.dispose]();
+}
+```
+
+Avoid [#avoid]
+
+Do not create ad hoc timers that outlive the request.
+
+```ts
+const timer = setTimeout(() => controller.abort(), 5_000);
+await doWork(controller.signal);
+```
+
+Use `withTimeout()` or dispose the derived signal explicitly so timers and parent listeners are cleaned up.
+
 
 # yieldless/singleflight
 
@@ -1587,6 +2838,39 @@ Behavior notes [#behavior-notes]
 * `clearAll()` aborts and removes every in-flight entry.
 * A parent `signal` aborts the shared operation for every active caller.
 
+Good [#good]
+
+Wrap expensive idempotent reads that often get requested twice at the same time.
+
+```ts
+const loadPullRequest = singleFlight(
+  (signal, owner: string, repo: string, number: number) =>
+    fetchPullRequest(owner, repo, number, signal),
+  {
+    getKey: (owner, repo, number) => `${owner}/${repo}#${String(number)}`,
+  },
+);
+```
+
+Clear entries when a view or process is no longer interested.
+
+```ts
+loadPullRequest.clear(owner, repo, number);
+```
+
+Avoid [#avoid]
+
+Do not use `singleFlight()` as a long-lived cache.
+
+```ts
+const loadUser = singleFlight(readUser);
+
+// Later, expecting this to be cached:
+await loadUser("same-user");
+```
+
+Entries are removed when the in-flight promise settles. Put durable caching in your own data layer.
+
 
 # yieldless/task
 
@@ -1641,6 +2925,43 @@ Good fits [#good-fits]
 * Parallel repository reads that should rise and fall together
 * Request-scoped fan-out in HTTP handlers
 * Background jobs that launch multiple abortable I/O operations
+
+Good [#good]
+
+Use the group for work with one lifecycle.
+
+```ts
+const summary = await runTaskGroup(async (group) => {
+  const status = group.spawn((signal) => readStatus(repoPath, signal));
+  const branches = group.spawn((signal) => readBranches(repoPath, signal));
+
+  return {
+    status: await status,
+    branches: await branches,
+  };
+}, {
+  signal: request.signal,
+});
+```
+
+Let failures throw inside `runTaskGroup()` when the body is promise-native. If you need tuple-native fan-out, use `yieldless/all`.
+
+Avoid [#avoid]
+
+Do not spawn children after the group body has returned.
+
+```ts
+let groupRef: TaskGroup | undefined;
+
+await runTaskGroup((group) => {
+  groupRef = group;
+  return "done";
+});
+
+groupRef?.spawn(loadLater);
+```
+
+Do not swallow child failures unless you intentionally convert them to successful values. The group uses thrown failures to abort siblings.
 
 
 # yieldless/timer
@@ -1699,3 +3020,39 @@ Behavior notes [#behavior-notes]
 * Poll attempts start at `1`.
 * `timeoutMs` uses `yieldless/signal` internally, so timeout errors are `TimeoutError`.
 * The operation receives the same signal that controls the interval wait.
+
+Good [#good]
+
+Use `poll()` for eventual consistency and job status checks.
+
+```ts
+const [error, job] = await poll(
+  async (_attempt, signal) => {
+    const [error, current] = await fetchJsonSafe<Job>(jobUrl, { signal });
+    if (error) return [error, null];
+
+    return current.state === "ready"
+      ? [null, current] as const
+      : [new Error("Job is not ready"), null] as const;
+  },
+  {
+    intervalMs: 1_000,
+    timeoutMs: 30_000,
+    signal,
+  },
+);
+```
+
+Use `sleepSafe()` when a delay is part of tuple-native control flow.
+
+Avoid [#avoid]
+
+Do not write uncancelable timer promises.
+
+```ts
+await new Promise((resolve) => {
+  setTimeout(resolve, 1_000);
+});
+```
+
+If a user can navigate away or a request can abort, pass the signal to `sleep()` or `poll()`.

@@ -54,3 +54,35 @@ Cancellation [#cancellation]
 <Callout>
   If you pass an `AbortSignal`, Yieldless forwards it to Node's native child-process signal handling and waits for the subprocess to close before it settles the wrapper promise.
 </Callout>
+
+Good [#good]
+
+Use filesystem tuple helpers at the file boundary.
+
+```ts
+const [readError, contents] = await readFileSafe(configPath);
+if (readError) return [readError, null] as const;
+```
+
+Use `runCommandSafe()` when non-zero exit status is a normal operational failure.
+
+```ts
+const [error, result] = await runCommandSafe("git", ["diff", "--stat"], {
+  cwd: repoPath,
+  signal,
+});
+
+if (error instanceof CommandError) {
+  logger.warn({ stderr: error.stderr }, "git diff failed");
+}
+```
+
+Avoid [#avoid]
+
+Do not shell-concatenate user input.
+
+```ts
+await runCommandSafe("sh", ["-c", `git -C ${repoPath} status`]);
+```
+
+Pass the executable and args separately so Node handles argument boundaries.
