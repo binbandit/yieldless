@@ -33,6 +33,15 @@ export {
   readOptionalEnv,
 } from "yieldless/env";
 
+export type {
+  EventEmitterLike,
+  EventName,
+  EventSourceLike,
+  EventTargetLike,
+  OnceEventOptions,
+} from "yieldless/event";
+export { onceEvent, onceEventSafe } from "yieldless/event";
+
 export type { FetchJsonError, FetchSafeError, FetchSafeOptions } from "yieldless/fetch";
 export {
   fetchJsonSafe,

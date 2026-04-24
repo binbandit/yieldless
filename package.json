@@ -30,6 +30,10 @@
       "types": "./dist/env.d.ts",
       "import": "./dist/env.js"
     },
+    "./event": {
+      "types": "./dist/event.d.ts",
+      "import": "./dist/event.js"
+    },
     "./result": {
       "types": "./dist/result.d.ts",
       "import": "./dist/result.js"

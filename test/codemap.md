@@ -15,6 +15,7 @@ The suite is organized by concern rather than by fixture-heavy integration scaff
 | `retry.test.ts` | Retry termination, delay callbacks, and abort-aware backoff. |
 | `signal.test.ts` | Timeout deadlines, inherited cancellation, and signal cleanup. |
 | `timer.test.ts` | Abort-aware sleep, tuple sleep, polling stop conditions, timeout behavior, and option validation. |
+| `event.test.ts` | EventTarget and EventEmitter one-shot waits, default error rejection, abort tuple wrapping, and listener cleanup. |
 | `fetch.test.ts` | Native fetch wrappers, status errors, JSON parsing, custom status policies, and timeout propagation. |
 | `singleflight.test.ts` | In-flight deduplication, custom keys, tuple error normalization, entry clearing, and parent cancellation. |
 | `adapters.test.ts` | Async context, schema adapters, router behavior, and IPC serialization. |

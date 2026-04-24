@@ -173,6 +173,18 @@ const [error, body] = await fetchJsonSafe<{ ok: boolean }>(url, {
 
 Use `fetchSafe` when the caller needs the raw `Response`. Use `fetchJsonSafe` for JSON APIs. Non-ok responses become `HttpStatusError`; JSON parser failures become `JsonParseError`.
 
+### yieldless/event
+
+One-shot event waits for EventTarget-like and EventEmitter-like sources.
+
+```ts
+import { onceEventSafe } from "yieldless/event";
+
+const [error, event] = await onceEventSafe(source, "ready", { signal });
+```
+
+Use `onceEvent` when promise rejection is natural, and `onceEventSafe` when the event wait belongs in tuple form. EventEmitter `error` events reject by default unless `rejectOn: false` is passed.
+
 ### yieldless/context
 
 `AsyncLocalStorage` wrapper. Not a global container.

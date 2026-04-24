@@ -21,6 +21,7 @@ The next layer adds practical backend pieces on top of those primitives:
 - fetch helpers with status, timeout, and JSON handling
 - result combinators for success/error pipelines
 - environment readers and schema-backed config parsing
+- abort-aware one-shot event waits
 - async context storage for request-scoped data and spans
 - tuple-native parallel and bounded-work combinators
 - in-flight request deduplication
@@ -237,6 +238,18 @@ const [error, user] = await fetchJsonSafe<{ id: string }>(
 ```
 
 Non-ok responses return `HttpStatusError`, JSON parser failures return `JsonParseError`, and timeouts use the same abort primitives as the rest of the library.
+
+### `yieldless/event`
+
+`onceEvent` and `onceEventSafe` bridge `EventTarget` / `EventEmitter` sources into async code with listener cleanup and abort support.
+
+```ts
+import { onceEventSafe } from "yieldless/event";
+
+const [error, event] = await onceEventSafe(button, "click", { signal });
+```
+
+For Node-style emitters, `error` events reject the wait by default so socket and process boundaries behave naturally.
 
 ### `yieldless/context`
 
