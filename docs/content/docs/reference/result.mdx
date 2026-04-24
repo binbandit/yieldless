@@ -1,0 +1,61 @@
+---
+title: yieldless/result
+description: Small tuple combinators for readable success and error pipelines.
+---
+
+`yieldless/result` keeps tuple handling pleasant once a flow has more than one branch. It does not add a runtime, a pipe DSL, or a new result object. Every helper accepts or returns the same `[error, value]` tuple from `yieldless/error`.
+
+## Exports
+
+- `isOk(result): result is [null, T]`
+- `isErr(result): result is [E, null]`
+- `fromNullable(value, createError): SafeResult<NonNullable<T>, E>`
+- `mapOk(result, mapper): SafeResult<Value, E>`
+- `mapOkAsync(result, mapper): Promise<SafeResult<Value, E>>`
+- `mapErr(result, mapper): SafeResult<T, NextError>`
+- `mapErrAsync(result, mapper): Promise<SafeResult<T, NextError>>`
+- `andThen(result, mapper): SafeResult<Value, E | NextError>`
+- `andThenAsync(result, mapper): Promise<SafeResult<Value, E | NextError>>`
+- `tapOk(result, effect): SafeResult<T, E>`
+- `tapOkAsync(result, effect): Promise<SafeResult<T, E>>`
+- `tapErr(result, effect): SafeResult<T, E>`
+- `tapErrAsync(result, effect): Promise<SafeResult<T, E>>`
+- `toPromise(result): Promise<T>`
+
+## Example
+
+```ts
+import { err, ok, safeTry } from "yieldless/error";
+import { andThenAsync, fromNullable, mapOk, tapErr } from "yieldless/result";
+
+const [error, view] = await andThenAsync(
+  await safeTry(loadUser(userId)),
+  async (user) => {
+    const existingUser = fromNullable(
+      user,
+      () => new Error("User not found"),
+    );
+
+    return mapOk(existingUser, (value) => ({
+      id: value.id,
+      name: value.name,
+    }));
+  },
+);
+
+return tapErr(
+  error ? err(error) : ok(view),
+  (cause) => logger.warn(cause),
+);
+```
+
+## Behavior notes
+
+- Mapping helpers only touch the branch named in the function.
+- Async helpers are explicit so synchronous tuple code can stay synchronous.
+- `fromNullable()` treats both `null` and `undefined` as missing.
+- `toPromise()` is intended for framework boundaries that require promise rejection.
+
+## When to use it
+
+Use these helpers when a tuple flow is becoming noisy but still belongs in ordinary TypeScript. If the code is clearer with one `if (error) return [error, null]`, keep the branch.

@@ -9,6 +9,7 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | Module | Responsibility |
 |--------|----------------|
 | `error.ts` | Defines `SafeResult` plus tuple capture and unwrap helpers. |
+| `result.ts` | Provides small tuple combinators for mapping, chaining, tapping, nullable conversion, and promise boundaries. |
 | `task.ts` | Implements structured concurrency with sibling cancellation and upstream abort inheritance. |
 | `resource.ts` | Wraps acquire/release pairs in an `AsyncDisposable` compatible object. |
 | `di.ts` | Binds plain dependency objects onto functions without a container. |

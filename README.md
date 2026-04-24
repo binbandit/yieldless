@@ -7,6 +7,7 @@ Full documentation lives at <https://binbandit.github.io/yieldless/>.
 The library is built around four ideas:
 
 - error handling as simple tuples
+- readable tuple pipelines without a DSL
 - structured concurrency through `AbortController`
 - resource cleanup through native `await using`
 - dependency injection through plain functions
@@ -15,6 +16,7 @@ The next layer adds practical backend pieces on top of those primitives:
 
 - retry loops with abort-aware backoff
 - deadline helpers for any abort-aware operation
+- result combinators for success/error pipelines
 - async context storage for request-scoped data and spans
 - tuple-native parallel and bounded-work combinators
 - schema adapters that stay in tuple-land
@@ -59,6 +61,26 @@ const uiState = match(ok(value), {
   err: (error) => ({ kind: "error", message: String(error) }),
 });
 ```
+
+### `yieldless/result`
+
+`yieldless/result` adds tiny combinators for tuple pipelines that have grown past one early return.
+
+```ts
+import { safeTry } from "yieldless/error";
+import { andThenAsync, fromNullable, mapOk } from "yieldless/result";
+
+const result = await andThenAsync(
+  await safeTry(loadUser(userId)),
+  async (user) =>
+    mapOk(
+      fromNullable(user, () => new Error("User not found")),
+      (value) => ({ id: value.id, name: value.name }),
+    ),
+);
+```
+
+Use these helpers when they remove noise. A direct `if (error) return [error, null]` is still the right shape for simple branches.
 
 ### `yieldless/task`
 

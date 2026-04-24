@@ -26,6 +26,10 @@
       "types": "./dist/error.d.ts",
       "import": "./dist/error.js"
     },
+    "./result": {
+      "types": "./dist/result.d.ts",
+      "import": "./dist/result.js"
+    },
     "./task": {
       "types": "./dist/task.d.ts",
       "import": "./dist/task.js"

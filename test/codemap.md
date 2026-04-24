@@ -9,6 +9,7 @@ The suite is organized by concern rather than by fixture-heavy integration scaff
 | File | Responsibility |
 |------|----------------|
 | `core.test.ts` | Error tuples, dependency injection, and resource cleanup basics. |
+| `result.test.ts` | Tuple combinators for mapping, chaining, tapping, nullable conversion, and promise boundaries. |
 | `concurrency.test.ts` | `all()`, `mapLimit()`, `race()`, and `runTaskGroup()` cancellation semantics. |
 | `retry.test.ts` | Retry termination, delay callbacks, and abort-aware backoff. |
 | `signal.test.ts` | Timeout deadlines, inherited cancellation, and signal cleanup. |

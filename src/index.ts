@@ -72,6 +72,30 @@ export {
 export type { AsyncResource, ResourceAcquire, ResourceRelease } from "yieldless/resource";
 export { acquireResource } from "yieldless/resource";
 
+export type {
+  ErrResult,
+  OkResult,
+  ResultAsyncMapper,
+  ResultMapper,
+  ResultNext,
+} from "yieldless/result";
+export {
+  andThen,
+  andThenAsync,
+  fromNullable,
+  isErr,
+  isOk,
+  mapErr,
+  mapErrAsync,
+  mapOk,
+  mapOkAsync,
+  tapErr,
+  tapErrAsync,
+  tapOk,
+  tapOkAsync,
+  toPromise,
+} from "yieldless/result";
+
 export type { RetryJitter, RetryOperation, RetryOptions, RetryState } from "yieldless/retry";
 export { safeRetry } from "yieldless/retry";
 

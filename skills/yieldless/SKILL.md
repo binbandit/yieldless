@@ -34,6 +34,25 @@ const value = unwrap(result); // rethrows if error
 return parseErr ? err(parseErr) : ok(data);
 ```
 
+### yieldless/result
+
+Small tuple combinators. Use them when a tuple flow has multiple transformation steps but does not need a framework-owned runtime or pipe DSL.
+
+```ts
+import { andThenAsync, fromNullable, mapOk, tapErr } from "yieldless/result";
+
+const result = await andThenAsync(
+  await safeTry(loadUser(userId)),
+  async (user) =>
+    mapOk(
+      fromNullable(user, () => new Error("User not found")),
+      (value) => ({ id: value.id, name: value.name }),
+    ),
+);
+```
+
+Prefer direct `if (error) return [error, null]` branches for simple flows. Reach for `mapOk`, `mapErr`, `andThen`, `tapOk`, `tapErr`, and `fromNullable` when they make a pipeline easier to scan.
+
 ### yieldless/task
 
 Structured concurrency. `runTaskGroup` shares an `AbortController` across spawned tasks. If one fails, the signal aborts siblings and the group waits for all children before rethrowing. If you already have an upstream `AbortSignal`, pass it in so the group inherits cancellation.
