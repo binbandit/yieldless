@@ -52,7 +52,13 @@ const llmSections = [
     title: 'Guides',
     description:
       'Conceptual documentation for adopting Yieldless and choosing the right module.',
-    pages: ['quickstart', 'module-selection', 'design-rules', 'do-and-dont'],
+    pages: [
+      'quickstart',
+      'examples',
+      'module-selection',
+      'design-rules',
+      'do-and-dont',
+    ],
   },
   {
     slug: 'reference',
@@ -97,6 +103,7 @@ const llmSections = [
     pages: [
       'resilient-service-flow',
       'bounded-batch-work',
+      'repository-indexer',
       'electron-git-client',
       'electron-pr-review-workbench',
     ],
