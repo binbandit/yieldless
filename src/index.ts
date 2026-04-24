@@ -116,6 +116,9 @@ export type {
 } from "yieldless/signal";
 export { createTimeoutSignal, TimeoutError, withTimeout } from "yieldless/signal";
 
+export type { PollOperation, PollOptions, SleepOptions } from "yieldless/timer";
+export { poll, sleep, sleepSafe } from "yieldless/timer";
+
 export type {
   ParseAsyncSchema,
   ParseSchema,

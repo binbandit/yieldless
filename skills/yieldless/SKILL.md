@@ -125,6 +125,23 @@ const response = await withTimeout(
 
 Use `withTimeout` for one call and `createTimeoutSignal` when several operations need to share the same budget.
 
+### yieldless/timer
+
+Abort-aware sleep and polling helpers. Use these for small timing jobs, not as a scheduler.
+
+```ts
+import { poll, sleep } from "yieldless/timer";
+
+await sleep(250, { signal });
+
+const [error, job] = await poll(
+  (_attempt, signal) => getJob(jobId, signal),
+  { intervalMs: 1_000, timeoutMs: 30_000, signal },
+);
+```
+
+Use `sleepSafe` when the wait belongs in tuple form. `poll` retries tuple-returning operations until success, `maxAttempts`, `shouldContinue` returning false, timeout, or abort.
+
 ### yieldless/fetch
 
 Native `fetch()` helpers with tuple errors, status handling, JSON parsing, and timeout support.

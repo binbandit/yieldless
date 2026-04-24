@@ -54,6 +54,10 @@
       "types": "./dist/signal.d.ts",
       "import": "./dist/signal.js"
     },
+    "./timer": {
+      "types": "./dist/timer.d.ts",
+      "import": "./dist/timer.js"
+    },
     "./context": {
       "types": "./dist/context.d.ts",
       "import": "./dist/context.js"

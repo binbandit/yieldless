@@ -16,6 +16,7 @@ The next layer adds practical backend pieces on top of those primitives:
 
 - retry loops with abort-aware backoff
 - deadline helpers for any abort-aware operation
+- abort-aware sleep and polling
 - fetch helpers with status, timeout, and JSON handling
 - result combinators for success/error pipelines
 - async context storage for request-scoped data and spans
@@ -179,6 +180,27 @@ const [error, response] = await safeTry(
 ```
 
 If you need the lower-level signal for a longer scope, `createTimeoutSignal()` gives you a disposable derived signal that inherits parent cancellation too.
+
+### `yieldless/timer`
+
+`sleep`, `sleepSafe`, and `poll` cover small timing jobs without introducing a scheduler.
+
+```ts
+import { poll, sleep } from "yieldless/timer";
+
+await sleep(250, { signal });
+
+const [error, job] = await poll(
+  async (_attempt, signal) => readJobStatus(jobId, signal),
+  {
+    intervalMs: 1_000,
+    timeoutMs: 30_000,
+    signal,
+  },
+);
+```
+
+Poll attempts share the same abort signal as the interval wait, so user navigation or request cancellation stops the whole loop.
 
 ### `yieldless/fetch`
 

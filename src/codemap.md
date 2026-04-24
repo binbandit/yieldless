@@ -15,6 +15,7 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | `di.ts` | Binds plain dependency objects onto functions without a container. |
 | `retry.ts` | Runs tuple operations with exponential backoff and abort-aware timers. |
 | `signal.ts` | Builds disposable deadline signals and timeout wrappers for abort-aware work. |
+| `timer.ts` | Provides abort-aware sleep, tuple sleep, and fixed-interval polling. |
 | `fetch.ts` | Wraps native fetch with tuple errors, timeouts, status checks, and JSON parsing. |
 | `context.ts` | Wraps `AsyncLocalStorage` and trace-span lifecycles. |
 | `all.ts` | Provides tuple-native `all()`, `race()`, and bounded `mapLimit()` combinators with shared cancellation. |
