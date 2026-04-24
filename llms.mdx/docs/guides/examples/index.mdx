@@ -119,18 +119,18 @@ Respect an API quota [#respect-an-api-quota]
 import { fetchJsonSafe } from "yieldless/fetch";
 import { createRateLimiter } from "yieldless/limiter";
 
-const githubQuota = createRateLimiter({
+const paymentQuota = createRateLimiter({
   limit: 30,
   intervalMs: 60_000,
 });
 
-const [quotaError] = await githubQuota.takeSafe({ signal });
+const [quotaError] = await paymentQuota.takeSafe({ signal });
 
 if (quotaError) {
   return [quotaError, null] as const;
 }
 
-return await fetchJsonSafe<Repository>(repositoryUrl, { signal });
+return await fetchJsonSafe<Invoice>(invoiceUrl, { signal });
 ```
 
 Keeping the wait explicit makes quota pressure visible in code review.
@@ -368,35 +368,75 @@ export async function resolveAuthor(post: Post, signal: AbortSignal) {
 
 The batcher removes N+1 pressure from the current tick. The cache removes repeated reads across later calls.
 
-A route with cached reads and explicit fresh reload [#a-route-with-cached-reads-and-explicit-fresh-reload]
+A product route with cached reads and explicit fresh reload [#a-product-route-with-cached-reads-and-explicit-fresh-reload]
 
 ```ts
 import { createCache } from "yieldless/cache";
 import { fetchJsonSafe } from "yieldless/fetch";
 import { honoHandler } from "yieldless/router";
 
-const repositories = createCache<string, Repository>({
+const products = createCache<string, Product>({
   ttlMs: 30_000,
   maxSize: 1_000,
-  load: (repoId, signal) =>
-    fetchJsonSafe<Repository>(`/api/repositories/${repoId}`, {
+  load: (productId, signal) =>
+    fetchJsonSafe<Product>(`/api/products/${productId}`, {
       timeoutMs: 4_000,
       signal,
     }),
 });
 
-export const getRepository = honoHandler(async (c) => {
-  const repoId = c.req.param("repoId");
+export const getProduct = honoHandler(async (c) => {
+  const productId = c.req.param("productId");
   const forceRefresh = c.req.query("refresh") === "true";
   const result = forceRefresh
-    ? await repositories.refresh(repoId, { signal: c.req.raw.signal })
-    : await repositories.get(repoId, { signal: c.req.raw.signal });
+    ? await products.refresh(productId, { signal: c.req.raw.signal })
+    : await products.get(productId, { signal: c.req.raw.signal });
 
   return result;
 });
 ```
 
 The caller can ask for freshness without bypassing the tuple flow or duplicating the loader.
+
+A webhook intake route that returns quickly [#a-webhook-intake-route-that-returns-quickly]
+
+```ts
+import { safeTry } from "yieldless/error";
+import { createQueue } from "yieldless/queue";
+import { BadRequestError, honoHandler } from "yieldless/router";
+import { parseSafe } from "yieldless/schema";
+
+const webhookJobs = createQueue<PaymentWebhook>({ capacity: 5_000 });
+
+export const postPaymentWebhook = honoHandler(
+  async (c) => {
+    const [bodyError, body] = await safeTry(c.req.json());
+
+    if (bodyError) {
+      return [new BadRequestError("Invalid webhook JSON"), null] as const;
+    }
+
+    const [eventError, event] = parseSafe(paymentWebhookSchema, body);
+
+    if (eventError) {
+      return [eventError, null] as const;
+    }
+
+    const [queueError] = await webhookJobs.offer(event, {
+      signal: c.req.raw.signal,
+    });
+
+    if (queueError) {
+      return [queueError, null] as const;
+    }
+
+    return [null, { accepted: true }] as const;
+  },
+  { successStatus: 202 },
+);
+```
+
+The webhook handler validates and enqueues. The slow reconciliation work can happen in a worker with retries, logging, and its own cancellation boundary.
 
 Avoid examples [#avoid-examples]
 

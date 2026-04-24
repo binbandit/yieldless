@@ -87,8 +87,12 @@ Per-module API details, examples, behavior notes, and good/avoid usage guidance.
 
 ## Recipes
 
-End-to-end examples for backend, batch, and Electron workflows.
+End-to-end examples for product, backend, batch, and Electron workflows.
 
+- [Checkout Flow](https://binbandit.github.io/yieldless/docs/recipes/checkout-flow/): A customer checkout example with validation, inventory reads, payment resilience, rate limits, and receipt jobs.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/checkout-flow/index.mdx
+- [Customer Import](https://binbandit.github.io/yieldless/docs/recipes/customer-import/): Import a customer CSV with validation, bounded concurrency, duplicate checks, progress events, and polite API calls.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/customer-import/index.mdx
 - [Resilient Service Flow](https://binbandit.github.io/yieldless/docs/recipes/resilient-service-flow/): A practical backend flow that combines tuples, retries, validation, routing, and cancellation.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/resilient-service-flow/index.mdx
 - [Bounded Batch Work](https://binbandit.github.io/yieldless/docs/recipes/bounded-batch-work/): Process lists of API, filesystem, or subprocess work without unbounded parallelism.

@@ -1,4 +1,4 @@
 1:"$Sreact.fragment"
 2:I[45121,["/yieldless/_next/static/chunks/bfc453f05eb061ad.js","/yieldless/_next/static/chunks/157c013d9eec30d3.js","/yieldless/_next/static/chunks/81f0f13d25d49d65.js","/yieldless/_next/static/chunks/ee7325c5ebc9cc02.js","/yieldless/_next/static/chunks/e850e5fdfe9a1f6d.js","/yieldless/_next/static/chunks/b069d1dcb4c03f87.js"],"default"]
 3:I[60512,["/yieldless/_next/static/chunks/bfc453f05eb061ad.js","/yieldless/_next/static/chunks/157c013d9eec30d3.js","/yieldless/_next/static/chunks/81f0f13d25d49d65.js","/yieldless/_next/static/chunks/ee7325c5ebc9cc02.js","/yieldless/_next/static/chunks/e850e5fdfe9a1f6d.js","/yieldless/_next/static/chunks/b069d1dcb4c03f87.js"],"default"]
-0:{"buildId":"dgN1os0a8wyS3WL8QSOZa","rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"loading":null,"isPartial":false}
+0:{"buildId":"dx_dOkC7HZbR-SPUbM9MB","rsc":["$","$1","c",{"children":[null,["$","$L2",null,{"parallelRouterKey":"children","template":["$","$L3",null,{}]}]]}],"loading":null,"isPartial":false}

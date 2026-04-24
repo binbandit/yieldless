@@ -39,13 +39,13 @@ return await runTaskGroup(async (group) => {
 
   <Card title="Examples" href="https://binbandit.github.io/yieldless/docs/guides/examples/" />
 
+  <Card title="Checkout Flow" href="https://binbandit.github.io/yieldless/docs/recipes/checkout-flow/" />
+
+  <Card title="Customer Import" href="https://binbandit.github.io/yieldless/docs/recipes/customer-import/" />
+
   <Card title="Module Selection" href="https://binbandit.github.io/yieldless/docs/guides/module-selection/" />
 
-  <Card title="Design Rules" href="https://binbandit.github.io/yieldless/docs/guides/design-rules/" />
-
   <Card title="API Reference" href="https://binbandit.github.io/yieldless/docs/reference/error/" />
-
-  <Card title="Repository Indexer" href="https://binbandit.github.io/yieldless/docs/recipes/repository-indexer/" />
 </Cards>
 
 What Yieldless covers [#what-yieldless-covers]
@@ -454,18 +454,18 @@ Respect an API quota [#respect-an-api-quota]
 import { fetchJsonSafe } from "yieldless/fetch";
 import { createRateLimiter } from "yieldless/limiter";
 
-const githubQuota = createRateLimiter({
+const paymentQuota = createRateLimiter({
   limit: 30,
   intervalMs: 60_000,
 });
 
-const [quotaError] = await githubQuota.takeSafe({ signal });
+const [quotaError] = await paymentQuota.takeSafe({ signal });
 
 if (quotaError) {
   return [quotaError, null] as const;
 }
 
-return await fetchJsonSafe<Repository>(repositoryUrl, { signal });
+return await fetchJsonSafe<Invoice>(invoiceUrl, { signal });
 ```
 
 Keeping the wait explicit makes quota pressure visible in code review.
@@ -703,35 +703,75 @@ export async function resolveAuthor(post: Post, signal: AbortSignal) {
 
 The batcher removes N+1 pressure from the current tick. The cache removes repeated reads across later calls.
 
-A route with cached reads and explicit fresh reload [#a-route-with-cached-reads-and-explicit-fresh-reload]
+A product route with cached reads and explicit fresh reload [#a-product-route-with-cached-reads-and-explicit-fresh-reload]
 
 ```ts
 import { createCache } from "yieldless/cache";
 import { fetchJsonSafe } from "yieldless/fetch";
 import { honoHandler } from "yieldless/router";
 
-const repositories = createCache<string, Repository>({
+const products = createCache<string, Product>({
   ttlMs: 30_000,
   maxSize: 1_000,
-  load: (repoId, signal) =>
-    fetchJsonSafe<Repository>(`/api/repositories/${repoId}`, {
+  load: (productId, signal) =>
+    fetchJsonSafe<Product>(`/api/products/${productId}`, {
       timeoutMs: 4_000,
       signal,
     }),
 });
 
-export const getRepository = honoHandler(async (c) => {
-  const repoId = c.req.param("repoId");
+export const getProduct = honoHandler(async (c) => {
+  const productId = c.req.param("productId");
   const forceRefresh = c.req.query("refresh") === "true";
   const result = forceRefresh
-    ? await repositories.refresh(repoId, { signal: c.req.raw.signal })
-    : await repositories.get(repoId, { signal: c.req.raw.signal });
+    ? await products.refresh(productId, { signal: c.req.raw.signal })
+    : await products.get(productId, { signal: c.req.raw.signal });
 
   return result;
 });
 ```
 
 The caller can ask for freshness without bypassing the tuple flow or duplicating the loader.
+
+A webhook intake route that returns quickly [#a-webhook-intake-route-that-returns-quickly]
+
+```ts
+import { safeTry } from "yieldless/error";
+import { createQueue } from "yieldless/queue";
+import { BadRequestError, honoHandler } from "yieldless/router";
+import { parseSafe } from "yieldless/schema";
+
+const webhookJobs = createQueue<PaymentWebhook>({ capacity: 5_000 });
+
+export const postPaymentWebhook = honoHandler(
+  async (c) => {
+    const [bodyError, body] = await safeTry(c.req.json());
+
+    if (bodyError) {
+      return [new BadRequestError("Invalid webhook JSON"), null] as const;
+    }
+
+    const [eventError, event] = parseSafe(paymentWebhookSchema, body);
+
+    if (eventError) {
+      return [eventError, null] as const;
+    }
+
+    const [queueError] = await webhookJobs.offer(event, {
+      signal: c.req.raw.signal,
+    });
+
+    if (queueError) {
+      return [queueError, null] as const;
+    }
+
+    return [null, { accepted: true }] as const;
+  },
+  { successStatus: 202 },
+);
+```
+
+The webhook handler validates and enqueues. The slow reconciliation work can happen in a worker with retries, logging, and its own cancellation boundary.
 
 Avoid examples [#avoid-examples]
 
@@ -3638,6 +3678,465 @@ clock.tick(100);
 ```
 
 Use it by dependency injection, not global monkey-patching.
+
+
+# Checkout Flow
+
+
+
+Checkout is a good Yieldless fit because it crosses several failure-heavy boundaries without needing a framework runtime: user input, inventory reads, payment APIs, rate limits, and background receipts.
+
+This recipe keeps those boundaries explicit. The service code still reads like ordinary TypeScript, but the painful edges return tuples and accept cancellation.
+
+The moving parts [#the-moving-parts]
+
+* `yieldless/router` turns the tuple service into an HTTP response
+* `yieldless/schema` validates checkout input
+* `yieldless/cache` and `yieldless/batcher` keep inventory reads efficient
+* `yieldless/limiter` protects a payment API quota
+* `yieldless/breaker` fails fast while the payment provider is unhealthy
+* `yieldless/queue` stores receipt work for a local worker
+* `yieldless/fetch` keeps remote API calls in tuple form
+
+Checkout service [#checkout-service]
+
+```ts
+import { createBatcher } from "yieldless/batcher";
+import { CircuitOpenError, createCircuitBreaker } from "yieldless/breaker";
+import { createCache } from "yieldless/cache";
+import { safeTry } from "yieldless/error";
+import { HttpStatusError, fetchJsonSafe } from "yieldless/fetch";
+import { createRateLimiter } from "yieldless/limiter";
+import { createQueue } from "yieldless/queue";
+import { BadRequestError, honoHandler } from "yieldless/router";
+import { parseSafe } from "yieldless/schema";
+
+interface CheckoutInput {
+  readonly customerId: string;
+  readonly idempotencyKey: string;
+  readonly items: readonly {
+    readonly sku: string;
+    readonly quantity: number;
+  }[];
+}
+
+interface InventoryItem {
+  readonly priceCents: number;
+  readonly sku: string;
+  readonly stock: number;
+}
+
+interface PaymentIntent {
+  readonly id: string;
+  readonly status: "authorized" | "requires_action";
+}
+
+interface ReceiptJob {
+  readonly customerId: string;
+  readonly paymentId: string;
+}
+
+export function createCheckoutService(apiBaseUrl: string) {
+  const receiptJobs = createQueue<ReceiptJob>({ capacity: 1_000 });
+  const paymentQuota = createRateLimiter({ limit: 50, intervalMs: 60_000 });
+
+  const inventoryBatcher = createBatcher<string, InventoryItem>({
+    waitMs: 2,
+    maxBatchSize: 100,
+    loadMany: async (skus, signal) => {
+      const [error, inventory] = await fetchJsonSafe<InventoryItem[]>(
+        `${apiBaseUrl}/inventory?skus=${encodeURIComponent(skus.join(","))}`,
+        { timeoutMs: 2_000, signal },
+      );
+
+      if (error) {
+        return [error, null] as const;
+      }
+
+      const bySku = new Map(inventory.map((item) => [item.sku, item]));
+
+      return [
+        null,
+        skus.map(
+          (sku) => bySku.get(sku) ?? { sku, priceCents: 0, stock: 0 },
+        ),
+      ] as const;
+    },
+  });
+
+  const inventory = createCache<string, InventoryItem>({
+    ttlMs: 15_000,
+    maxSize: 2_000,
+    load: (sku, signal) => inventoryBatcher.load(sku, { signal }),
+  });
+
+  const createPayment = createCircuitBreaker(
+    (signal, input: { amountCents: number; idempotencyKey: string }) =>
+      fetchJsonSafe<PaymentIntent>(`${apiBaseUrl}/payments/intents`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": input.idempotencyKey,
+        },
+        body: JSON.stringify({ amountCents: input.amountCents }),
+        timeoutMs: 5_000,
+        signal,
+      }),
+    {
+      failureThreshold: 3,
+      cooldownMs: 20_000,
+      shouldTrip: (error) =>
+        !(error instanceof HttpStatusError) || error.status >= 500,
+    },
+  );
+
+  return {
+    receiptJobs,
+    async checkout(input: unknown, signal: AbortSignal) {
+      const [inputError, checkout] = parseSafe(checkoutSchema, input);
+
+      if (inputError) {
+        return [inputError, null] as const;
+      }
+
+      const loadedItems = await Promise.all(
+        checkout.items.map((item) => inventory.get(item.sku, { signal })),
+      );
+
+      const inventoryError = loadedItems.find(([error]) => error !== null)?.[0];
+
+      if (inventoryError) {
+        return [inventoryError, null] as const;
+      }
+
+      const items = loadedItems.map(([, item]) => item as InventoryItem);
+      const unavailable = checkout.items.find((requested, index) => {
+        const available = items[index]?.stock ?? 0;
+        return available < requested.quantity;
+      });
+
+      if (unavailable !== undefined) {
+        return [new BadRequestError(`${unavailable.sku} is out of stock`), null] as const;
+      }
+
+      const amountCents = checkout.items.reduce(
+        (total, item, index) =>
+          total + item.quantity * (items[index]?.priceCents ?? 0),
+        0,
+      );
+
+      const [quotaError] = await paymentQuota.takeSafe({ signal });
+
+      if (quotaError) {
+        return [quotaError, null] as const;
+      }
+
+      const [paymentError, payment] = await createPayment({
+        amountCents,
+        idempotencyKey: checkout.idempotencyKey,
+      });
+
+      if (paymentError instanceof CircuitOpenError) {
+        return [
+          new Error("Payments are temporarily unavailable. Please try again soon."),
+          null,
+        ] as const;
+      }
+
+      if (paymentError) {
+        return [paymentError, null] as const;
+      }
+
+      const [receiptError] = await receiptJobs.offer(
+        {
+          customerId: checkout.customerId,
+          paymentId: payment.id,
+        },
+        { signal },
+      );
+
+      if (receiptError) {
+        return [receiptError, null] as const;
+      }
+
+      return [
+        null,
+        {
+          paymentId: payment.id,
+          status: payment.status,
+        },
+      ] as const;
+    },
+  };
+}
+
+const checkoutService = createCheckoutService("https://api.example.com");
+
+export const postCheckout = honoHandler(
+  async (c) => {
+    const [bodyError, body] = await safeTry(c.req.json());
+
+    if (bodyError) {
+      return [new BadRequestError("Invalid checkout JSON"), null] as const;
+    }
+
+    return await checkoutService.checkout(body, c.req.raw.signal);
+  },
+  { successStatus: 201 },
+);
+```
+
+Receipt worker [#receipt-worker]
+
+```ts
+async function runReceiptWorker(signal: AbortSignal) {
+  while (!signal.aborted) {
+    const [takeError, job] = await checkoutService.receiptJobs.take({ signal });
+
+    if (takeError) {
+      return;
+    }
+
+    const [sendError] = await fetchJsonSafe("/internal/receipts/send", {
+      method: "POST",
+      body: JSON.stringify(job),
+      headers: { "content-type": "application/json" },
+      timeoutMs: 5_000,
+      signal,
+    });
+
+    if (sendError) {
+      console.error("failed to send receipt", sendError);
+    }
+  }
+}
+```
+
+Why this is a good fit [#why-this-is-a-good-fit]
+
+* Cart validation returns a normal HTTP validation response.
+* Inventory reads batch together and cache briefly, which helps busy product pages.
+* Payment quota is explicit before the payment call.
+* The circuit breaker stops a payment outage from becoming a retry storm.
+* Receipt delivery is queued so checkout can finish without waiting on email.
+
+Avoid: hiding business rules behind a generic pipeline [#avoid-hiding-business-rules-behind-a-generic-pipeline]
+
+```ts
+return await checkoutRuntime.run(input, {
+  validate: true,
+  cache: true,
+  rateLimit: true,
+  payment: true,
+  queueReceipt: true,
+});
+```
+
+That hides the parts reviewers most need to see: stock checks, idempotency, payment error handling, and what happens after the customer pays.
+
+
+# Customer Import
+
+
+
+Bulk imports are familiar to almost every product team. They look simple until a customer uploads a file with thousands of rows, duplicate emails, invalid data, and a slow CRM integration.
+
+This recipe keeps the import understandable:
+
+* validate each row as data
+* check duplicates in batches
+* limit outbound CRM calls
+* publish progress as rows complete
+* stop cleanly when the user cancels
+
+Import service [#import-service]
+
+```ts
+import { createBatcher } from "yieldless/batcher";
+import { safeTry, safeTrySync } from "yieldless/error";
+import { fetchJsonSafe } from "yieldless/fetch";
+import { mapLimit } from "yieldless/all";
+import { createRateLimiter } from "yieldless/limiter";
+import { createPubSub } from "yieldless/pubsub";
+import { parseSafe } from "yieldless/schema";
+
+interface CsvCustomerRow {
+  readonly email: string;
+  readonly name: string;
+  readonly plan: "free" | "pro" | "enterprise";
+}
+
+type ImportEvent =
+  | { readonly type: "started"; readonly total: number }
+  | { readonly type: "row-imported"; readonly row: number; readonly email: string }
+  | { readonly type: "row-skipped"; readonly row: number; readonly reason: string }
+  | { readonly type: "finished"; readonly imported: number; readonly skipped: number };
+
+export function createCustomerImporter() {
+  const events = createPubSub<ImportEvent>({ replay: 25 });
+  const crmQuota = createRateLimiter({ limit: 120, intervalMs: 60_000 });
+
+  const existingCustomers = createBatcher<string, boolean>({
+    waitMs: 2,
+    maxBatchSize: 250,
+    loadMany: async (emails, signal) => {
+      const [error, existing] = await customerRepository.existsByEmail(
+        emails,
+        signal,
+      );
+
+      if (error) {
+        return [error, null] as const;
+      }
+
+      const existingSet = new Set(existing);
+
+      return [null, emails.map((email) => existingSet.has(email))] as const;
+    },
+  });
+
+  async function importRow(
+    row: unknown,
+    index: number,
+    signal: AbortSignal,
+  ) {
+    const rowNumber = index + 1;
+    const [parseError, customer] = parseSafe(customerRowSchema, row);
+
+    if (parseError) {
+      events.publish({
+        type: "row-skipped",
+        row: rowNumber,
+        reason: "Invalid customer data",
+      });
+      return [null, { imported: 0, skipped: 1 }] as const;
+    }
+
+    const [duplicateError, exists] = await existingCustomers.load(
+      customer.email,
+      { signal },
+    );
+
+    if (duplicateError) {
+      return [duplicateError, null] as const;
+    }
+
+    if (exists) {
+      events.publish({
+        type: "row-skipped",
+        row: rowNumber,
+        reason: "Customer already exists",
+      });
+      return [null, { imported: 0, skipped: 1 }] as const;
+    }
+
+    const [quotaError] = await crmQuota.takeSafe({ signal });
+
+    if (quotaError) {
+      return [quotaError, null] as const;
+    }
+
+    const [crmError] = await fetchJsonSafe("/crm/customers", {
+      method: "POST",
+      body: JSON.stringify(customer),
+      headers: { "content-type": "application/json" },
+      timeoutMs: 4_000,
+      signal,
+    });
+
+    if (crmError) {
+      return [crmError, null] as const;
+    }
+
+    events.publish({
+      type: "row-imported",
+      row: rowNumber,
+      email: customer.email,
+    });
+
+    return [null, { imported: 1, skipped: 0 }] as const;
+  }
+
+  return {
+    events,
+    async importCsv(file: File, signal: AbortSignal) {
+      const [readError, text] = await safeTry(file.text());
+
+      if (readError) {
+        return [readError, null] as const;
+      }
+
+      const [parseError, rows] = safeTrySync(() => parseCustomerCsv(text));
+
+      if (parseError) {
+        return [parseError, null] as const;
+      }
+
+      events.publish({ type: "started", total: rows.length });
+
+      const [importError, results] = await mapLimit(
+        rows,
+        importRow,
+        {
+          concurrency: 8,
+          signal,
+        },
+      );
+
+      if (importError) {
+        return [importError, null] as const;
+      }
+
+      const summary = results.reduce(
+        (total, row) => ({
+          imported: total.imported + row.imported,
+          skipped: total.skipped + row.skipped,
+        }),
+        { imported: 0, skipped: 0 },
+      );
+
+      events.publish({ type: "finished", ...summary });
+
+      return [null, summary] as const;
+    },
+  };
+}
+```
+
+Streaming progress to a UI [#streaming-progress-to-a-ui]
+
+```ts
+const importer = createCustomerImporter();
+const progress = importer.events.subscribe();
+const controller = new AbortController();
+
+const running = importer.importCsv(uploadedFile, controller.signal);
+void running.finally(() => progress.close());
+
+for await (const event of progress) {
+  updateImportScreen(event);
+}
+
+const [error, summary] = await running;
+```
+
+The UI does not need to know about batching, rate limiting, or CRM failures. It gets ordinary domain events.
+
+Why this is a good fit [#why-this-is-a-good-fit]
+
+* Invalid rows become skipped rows instead of crashing the whole import.
+* Duplicate checks batch together instead of hitting the database once per row.
+* CRM calls run with bounded concurrency and a rate limit.
+* A single `AbortSignal` lets the user cancel the import from the UI.
+* Progress is an async subscription, so it works for web sockets, server-sent events, Electron IPC, or tests.
+
+Avoid: one promise per row [#avoid-one-promise-per-row]
+
+```ts
+await Promise.all(rows.map((row) => importCustomer(row)));
+```
+
+That pattern looks tidy until a customer uploads 20,000 rows. Use `mapLimit()` when the input is customer-sized.
 
 
 # Resilient Service Flow
