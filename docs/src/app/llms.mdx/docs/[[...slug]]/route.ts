@@ -1,4 +1,4 @@
-import { getLLMText, source } from '@/lib/source';
+import { getLLMText, llmMarkdownHeaders, source } from '@/lib/source';
 import { notFound } from 'next/navigation';
 
 export const revalidate = false;
@@ -10,9 +10,7 @@ export async function GET(_req: Request, { params }: RouteContext<'/llms.mdx/doc
   if (!page) notFound();
 
   return new Response(await getLLMText(page), {
-    headers: {
-      'Content-Type': 'text/markdown',
-    },
+    headers: llmMarkdownHeaders,
   });
 }
 

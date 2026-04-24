@@ -4,6 +4,11 @@ Yieldless is a small TypeScript library for people who like the ergonomics of Ef
 
 Full documentation lives at <https://binbandit.github.io/yieldless/>.
 
+The docs site also publishes agent-friendly context:
+
+- <https://binbandit.github.io/yieldless/llms.txt> for a compact index of guides, reference pages, recipes, and per-page Markdown links
+- <https://binbandit.github.io/yieldless/llms-full.txt> for the full documentation corpus as Markdown-oriented text
+
 The library is built around four ideas:
 
 - error handling as simple tuples

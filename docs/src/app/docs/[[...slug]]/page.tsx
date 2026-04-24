@@ -1,4 +1,4 @@
-import { getPageImage, source } from '@/lib/source';
+import { getMarkdownUrl, getPageImage, source } from '@/lib/source';
 import {
   DocsBody,
   DocsDescription,
@@ -19,7 +19,7 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   if (!page) notFound();
 
   const MDX = page.data.body;
-  const markdownUrl = `/llms.mdx/docs/${[...page.slugs, 'index.mdx'].join('/')}`;
+  const markdownUrl = getMarkdownUrl(page);
 
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
