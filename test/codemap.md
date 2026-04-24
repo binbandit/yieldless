@@ -27,7 +27,7 @@ The suite is organized by concern rather than by fixture-heavy integration scaff
 | `breaker.test.ts` | Circuit breaker state transitions, trip filters, open rejection, half-open recovery, and reset behavior. |
 | `singleflight.test.ts` | In-flight deduplication, custom keys, tuple error normalization, entry clearing, and parent cancellation. |
 | `adapters.test.ts` | Async context, schema adapters, router behavior, and IPC serialization. |
-| `node.test.ts` | Filesystem wrappers, subprocess execution, and task-group subprocess cancellation. |
+| `node.test.ts` | Filesystem wrappers, subprocess execution, shell commands, output streaming/limits, timeouts, and task-group subprocess cancellation. |
 | `test.test.ts` | Deferred promise helpers, microtask flushing, controllable abort signals, and manual clock sleeps. |
 
 ## Data And Control Flow

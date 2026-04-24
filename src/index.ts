@@ -131,17 +131,22 @@ export type {
   FilePath,
   MakeDirectoryOptions,
   RemovePathOptions,
+  ShellCommandOptions,
   WriteTextFileOptions,
 } from "yieldless/node";
 export {
   accessSafe,
   CommandError,
+  CommandOutputLimitError,
+  CommandTimeoutError,
   mkdirSafe,
   readFileSafe,
   readdirSafe,
   rmSafe,
   runCommand,
   runCommandSafe,
+  runShellCommand,
+  runShellCommandSafe,
   statSafe,
   writeFileSafe,
 } from "yieldless/node";

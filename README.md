@@ -534,15 +534,26 @@ If you need renderer-driven cancellation, the abortable IPC helpers let an `Abor
 `yieldless/node` wraps the pieces of Node you usually touch in backend tools: filesystem calls and subprocess execution.
 
 ```ts
-import { readFileSafe, runCommandSafe } from "yieldless/node";
+import { readFileSafe, runCommandSafe, runShellCommandSafe } from "yieldless/node";
 
 const [fileError, contents] = await readFileSafe(".git/HEAD");
-const [gitError, result] = await runCommandSafe("git", ["status", "--short"]);
+
+const [testError, testResult] = await runCommandSafe("pnpm", ["test"], {
+  cwd: workspacePath,
+  maxOutputBytes: 1024 * 1024,
+  onStdout: (chunk) => process.stdout.write(chunk),
+  timeoutMs: 60_000,
+});
+
+const [shellError, shellResult] = await runShellCommandSafe(
+  "pnpm test -- --runInBand",
+  { cwd: workspacePath, timeoutMs: 60_000 },
+);
 ```
 
-Command failures come back as tuple errors with captured `stdout`, `stderr`, and exit status instead of rejected promises.
+Command failures come back as tuple errors with captured `stdout`, `stderr`, exit status, duration, and command metadata instead of rejected promises.
 
-If you pass an `AbortSignal`, the subprocess is terminated through Node's native child-process cancellation support and the wrapper does not settle until the child has actually closed.
+If you pass an `AbortSignal` or `timeoutMs`, the subprocess is terminated through Node's native child-process cancellation support and the wrapper does not settle until the child has actually closed. Use `runCommandSafe(file, args)` for safe argument boundaries, and reserve `runShellCommandSafe()` for trusted shell syntax like pipes, redirects, and developer-authored command strings.
 
 ### `yieldless/test`
 

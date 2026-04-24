@@ -21,7 +21,19 @@ description: Tuple wrappers for Node filesystem work and child-process execution
 
 - `runCommand(file, args?, options?)`
 - `runCommandSafe(file, args?, options?)`
+- `runShellCommand(command, options?)`
+- `runShellCommandSafe(command, options?)`
 - `CommandError`
+- `CommandTimeoutError`
+- `CommandOutputLimitError`
+
+`CommandOptions` accepts:
+
+- `cwd`, `env`, `input`, `signal`, and `windowsHide`
+- `timeoutMs` for command deadlines
+- `maxOutputBytes` to stop noisy commands before they consume too much memory
+- `onStdout(chunk)` and `onStderr(chunk)` for live output
+- `killSignal` when aborted commands need a signal other than Node's default
 
 ## Filesystem example
 
@@ -37,18 +49,82 @@ const [error, contents] = await readFileSafe(".git/HEAD");
 import { runCommandSafe } from "yieldless/node";
 
 const [error, result] = await runCommandSafe(
-  "git",
-  ["status", "--short"],
-  { cwd: repositoryPath },
+  "pnpm",
+  ["test"],
+  {
+    cwd: workspacePath,
+    timeoutMs: 60_000,
+    maxOutputBytes: 1024 * 1024,
+    signal,
+  },
 );
 ```
 
+Successful results include `{ command, args, cwd, durationMs, stdout, stderr, exitCode, signal }`, which makes logging and diagnostics easier without parsing thrown errors.
+
 ## runCommand() vs runCommandSafe()
 
-- `runCommand()` throws on non-zero exit and returns `{ stdout, stderr, exitCode, signal }`
+- `runCommand()` throws on non-zero exit and returns command metadata plus captured output
 - `runCommandSafe()` wraps that behavior into a tuple
 
-`CommandError` includes the command output, exit code, signal, and Node error code when one exists.
+`CommandError` includes the command, args, duration, output, exit code, signal, and Node error code when one exists.
+
+## Exec-style shell command strings
+
+Prefer `runCommandSafe(file, args)` when you can. It keeps argument boundaries explicit.
+
+Use `runShellCommandSafe()` only when shell syntax is the point: pipes, redirects, environment expansion, or command strings provided by a trusted developer tool.
+
+```ts
+import { runShellCommandSafe } from "yieldless/node";
+
+const [error, result] = await runShellCommandSafe(
+  "pnpm test -- --runInBand",
+  {
+    cwd: workspacePath,
+    timeoutMs: 60_000,
+    onStdout: (chunk) => {
+      process.stdout.write(chunk);
+    },
+  },
+);
+```
+
+Do not pass user input into a shell command string. If the command contains user-provided values, use `runCommandSafe(file, args)` instead.
+
+## Live output
+
+Commands still capture output by default, but `onStdout` and `onStderr` let you stream progress to logs, terminals, or a UI while the command runs.
+
+```ts
+const [error, result] = await runCommandSafe("npm", ["run", "build"], {
+  cwd: workspacePath,
+  timeoutMs: 120_000,
+  onStdout: (chunk) => appendBuildLog(chunk),
+  onStderr: (chunk) => appendBuildLog(chunk),
+});
+
+if (error) {
+  appendBuildLog(error.stderr);
+}
+```
+
+## Output limits
+
+Use `maxOutputBytes` when a command can print unbounded logs. If the combined output exceeds the limit, the command is aborted and returns `CommandOutputLimitError` with partial captured output.
+
+```ts
+import { CommandOutputLimitError, runCommandSafe } from "yieldless/node";
+
+const [error, result] = await runCommandSafe("npm", ["test"], {
+  maxOutputBytes: 512 * 1024,
+  timeoutMs: 60_000,
+});
+
+if (error instanceof CommandOutputLimitError) {
+  logger.warn({ stdout: error.stdout }, "test output exceeded the capture limit");
+}
+```
 
 ## Cancellation
 
@@ -68,13 +144,13 @@ if (readError) return [readError, null] as const;
 Use `runCommandSafe()` when non-zero exit status is a normal operational failure.
 
 ```ts
-const [error, result] = await runCommandSafe("git", ["diff", "--stat"], {
-  cwd: repoPath,
+const [error, result] = await runCommandSafe("node", ["--check", filePath], {
+  cwd: workspacePath,
   signal,
 });
 
 if (error instanceof CommandError) {
-  logger.warn({ stderr: error.stderr }, "git diff failed");
+  logger.warn({ durationMs: error.durationMs, stderr: error.stderr }, "syntax check failed");
 }
 ```
 

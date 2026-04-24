@@ -7,11 +7,14 @@ import { describe, expect, it } from "vitest";
 import {
   accessSafe,
   CommandError,
+  CommandOutputLimitError,
+  CommandTimeoutError,
   mkdirSafe,
   readFileSafe,
   readdirSafe,
   rmSafe,
   runCommandSafe,
+  runShellCommandSafe,
   statSafe,
   writeFileSafe,
 } from "yieldless/node";
@@ -54,6 +57,12 @@ describe("yieldless/node process wrappers", () => {
     expect(error).toBeNull();
     expect(result?.stdout).toBe("ok");
     expect(result?.stderr).toBe("");
+    expect(result?.args).toEqual([
+      "-e",
+      "process.stdout.write('ok')",
+    ]);
+    expect(result?.command).toContain(process.execPath);
+    expect(result?.durationMs).toBeGreaterThanOrEqual(0);
   });
 
   it("passes stdin through to the subprocess", async () => {
@@ -69,6 +78,45 @@ describe("yieldless/node process wrappers", () => {
     expect(result?.stdout).toBe("YIELDLESS");
   });
 
+  it("streams stdout and stderr chunks while capturing output", async () => {
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+
+    const [error, result] = await runCommandSafe(
+      process.execPath,
+      [
+        "-e",
+        "process.stdout.write('out'); process.stderr.write('err')",
+      ],
+      {
+        onStderr: (chunk) => stderr.push(chunk),
+        onStdout: (chunk) => stdout.push(chunk),
+      },
+    );
+
+    expect(error).toBeNull();
+    expect(result?.stdout).toBe("out");
+    expect(result?.stderr).toBe("err");
+    expect(stdout.join("")).toBe("out");
+    expect(stderr.join("")).toBe("err");
+  });
+
+  it("runs explicit shell command strings", async () => {
+    const command = `${JSON.stringify(process.execPath)} -e ${JSON.stringify(
+      "process.stdout.write(process.env.YIELDLESS_SHELL ?? '')",
+    )}`;
+    const [error, result] = await runShellCommandSafe(command, {
+      env: {
+        ...process.env,
+        YIELDLESS_SHELL: "shell-ok",
+      },
+    });
+
+    expect(error).toBeNull();
+    expect(result?.command).toBe(command);
+    expect(result?.stdout).toBe("shell-ok");
+  });
+
   it("returns a CommandError on non-zero exit", async () => {
     const [error, result] = await runCommandSafe(process.execPath, [
       "-e",
@@ -79,6 +127,42 @@ describe("yieldless/node process wrappers", () => {
     expect(error).toMatchObject({
       exitCode: 7,
       stderr: "broken",
+    });
+    expect(error?.durationMs).toBeGreaterThanOrEqual(0);
+    expect(result).toBeNull();
+  });
+
+  it("returns a CommandTimeoutError when timeoutMs expires", async () => {
+    const [error, result] = await runCommandSafe(
+      process.execPath,
+      ["-e", "process.stdout.write('started'); setInterval(() => {}, 1_000)"],
+      {
+        timeoutMs: 20,
+      },
+    );
+
+    expect(error).toBeInstanceOf(CommandTimeoutError);
+    expect(error).toMatchObject({
+      timeoutMs: 20,
+    });
+    expect(typeof error?.stdout).toBe("string");
+    expect(result).toBeNull();
+  });
+
+  it("returns a CommandOutputLimitError when output exceeds maxOutputBytes", async () => {
+    const [error, result] = await runCommandSafe(
+      process.execPath,
+      ["-e", "process.stdout.write('abcdef')"],
+      {
+        maxOutputBytes: 3,
+      },
+    );
+
+    expect(error).toBeInstanceOf(CommandOutputLimitError);
+    expect(error).toMatchObject({
+      maxOutputBytes: 3,
+      stream: "stdout",
+      stdout: "abc",
     });
     expect(result).toBeNull();
   });

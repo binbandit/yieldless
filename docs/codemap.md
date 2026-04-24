@@ -8,7 +8,7 @@ The docs combine content-heavy MDX reference pages with a small Next.js app shel
 
 | Area | Responsibility |
 |------|----------------|
-| `content/docs/` | Guides, recipes, and per-module reference pages with examples, behavior notes, and good/avoid usage guidance. |
+| `content/docs/` | Guides, recipes, and per-module reference pages with examples, behavior notes, and good/avoid usage guidance, including command-runner patterns for local tools. |
 | `src/app/` | App routes, layouts, search endpoint, LLM text exports, and OG image generation. |
 | `src/components/` | MDX rendering, search UI, and provider wiring. |
 | `src/lib/` | Shared source loading and layout helpers. |

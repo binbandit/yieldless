@@ -33,7 +33,7 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | `schema.ts` | Adapts `parse` and `safeParse` style validators into tuple results. |
 | `router.ts` | Converts tuple handlers into Hono-style JSON responses and HTTP errors. |
 | `ipc.ts` | Preserves tuple success and error payloads across Electron IPC boundaries. |
-| `node.ts` | Wraps common filesystem and child-process calls in tuple-returning adapters. |
+| `node.ts` | Wraps common filesystem and child-process calls in tuple-returning adapters, including timeouts, output caps, live output callbacks, and explicit shell-command helpers. |
 | `test.ts` | Provides deferred promises, microtask flushing, controllable signals, and a manual clock for tests. |
 | `index.ts` | Re-exports types and functions for the top-level package import. |
 
