@@ -1,0 +1,165 @@
+# Command Runner
+
+
+
+Many products eventually need to run a local tool: a project build, a formatter, a video transcode, a document converter, or a test command. The hard part is rarely starting the process. The hard part is keeping the UI responsive, stopping cleanly when the user cancels, and returning enough detail to explain what happened.
+
+This recipe builds a small command runner for developer tools and desktop apps.
+
+Command runner service [#command-runner-service]
+
+```ts
+import {
+  CommandOutputLimitError,
+  CommandTimeoutError,
+  type CommandResult,
+  runCommandSafe,
+  runShellCommandSafe,
+} from "yieldless/node";
+import { createPubSub } from "yieldless/pubsub";
+
+type CommandEvent =
+  | { readonly type: "started"; readonly label: string }
+  | { readonly type: "stdout"; readonly chunk: string }
+  | { readonly type: "stderr"; readonly chunk: string }
+  | { readonly type: "finished"; readonly durationMs: number }
+  | { readonly type: "failed"; readonly message: string };
+
+export function createCommandRunner(workspacePath: string) {
+  const events = createPubSub<CommandEvent>({ replay: 20 });
+
+  async function runScript(scriptName: string, signal: AbortSignal) {
+    events.publish({ type: "started", label: `pnpm run ${scriptName}` });
+
+    const [error, result] = await runCommandSafe(
+      "pnpm",
+      ["run", scriptName],
+      {
+        cwd: workspacePath,
+        maxOutputBytes: 2 * 1024 * 1024,
+        onStderr: (chunk) => events.publish({ type: "stderr", chunk }),
+        onStdout: (chunk) => events.publish({ type: "stdout", chunk }),
+        signal,
+        timeoutMs: 120_000,
+      },
+    );
+
+    if (error) {
+      events.publish({ type: "failed", message: describeCommandError(error) });
+      return [error, null] as const;
+    }
+
+    events.publish({ type: "finished", durationMs: result.durationMs });
+    return [null, result] as const;
+  }
+
+  async function runTrustedPipeline(signal: AbortSignal) {
+    return await runShellCommandSafe("pnpm lint && pnpm test", {
+      cwd: workspacePath,
+      maxOutputBytes: 4 * 1024 * 1024,
+      onStderr: (chunk) => events.publish({ type: "stderr", chunk }),
+      onStdout: (chunk) => events.publish({ type: "stdout", chunk }),
+      signal,
+      timeoutMs: 180_000,
+    });
+  }
+
+  return {
+    events,
+    runScript,
+    runTrustedPipeline,
+  };
+}
+
+function describeCommandError(error: Error) {
+  if (error instanceof CommandTimeoutError) {
+    return `Timed out after ${error.timeoutMs}ms`;
+  }
+
+  if (error instanceof CommandOutputLimitError) {
+    return `Stopped after ${error.maxOutputBytes} bytes of command output`;
+  }
+
+  return error.message;
+}
+```
+
+`runScript()` accepts the script name as an argument, so Node keeps argument boundaries intact. `runTrustedPipeline()` uses a shell command string because the `&&` syntax is intentionally shell-specific and controlled by the application.
+
+Showing progress in a UI [#showing-progress-in-a-ui]
+
+```ts
+const runner = createCommandRunner(projectPath);
+const controller = new AbortController();
+const subscription = runner.events.subscribe();
+
+const running = runner.runScript("build", controller.signal);
+void running.finally(() => subscription.close());
+
+for await (const event of subscription) {
+  if (event.type === "stdout" || event.type === "stderr") {
+    appendLog(event.chunk);
+  }
+
+  if (event.type === "failed") {
+    showToast(event.message);
+  }
+}
+
+const [error, result] = await running;
+```
+
+The UI does not need to know how the process is spawned. It subscribes to ordinary events and owns cancellation through one `AbortController`.
+
+Returning a useful result [#returning-a-useful-result]
+
+```ts
+function summarize(result: CommandResult) {
+  return {
+    command: result.command,
+    durationMs: result.durationMs,
+    ok: result.exitCode === 0,
+    outputPreview: result.stdout.slice(-4_000),
+  };
+}
+```
+
+The command result includes the command, args, working directory, duration, stdout, stderr, exit code, and signal. That makes audit logs and support screens possible without reparsing the terminal transcript.
+
+Good [#good]
+
+Use `runCommandSafe(file, args)` when any part of the command came from a user, a project setting, or a database row.
+
+```ts
+await runCommandSafe("ffmpeg", [
+  "-i",
+  inputPath,
+  "-frames:v",
+  "1",
+  thumbnailPath,
+], {
+  maxOutputBytes: 512 * 1024,
+  signal,
+  timeoutMs: 30_000,
+});
+```
+
+Use `runShellCommandSafe()` for trusted shell syntax that is easier to read as one command.
+
+```ts
+await runShellCommandSafe("pnpm lint && pnpm test", {
+  cwd: workspacePath,
+  signal,
+  timeoutMs: 180_000,
+});
+```
+
+Avoid [#avoid]
+
+Do not put user-controlled values into a shell command string.
+
+```ts
+await runShellCommandSafe(`ffmpeg -i ${inputPath} ${thumbnailPath}`);
+```
+
+Use separate arguments instead. It reads a little longer, but it avoids shell injection and quoting edge cases.

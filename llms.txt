@@ -103,3 +103,5 @@ End-to-end examples for product, backend, batch, and Electron workflows.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/electron-git-client/index.mdx
 - [Electron PR Review Workbench](https://binbandit.github.io/yieldless/docs/recipes/electron-pr-review-workbench/): A practical architecture for a GitHub pull-request review desktop app using tuples in the right places and ordinary UI state in the renderer.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/electron-pr-review-workbench/index.mdx
+- [Command Runner](https://binbandit.github.io/yieldless/docs/recipes/command-runner/): Run local tools with live logs, deadlines, output limits, cancellation, and safe argument boundaries.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/command-runner/index.mdx
