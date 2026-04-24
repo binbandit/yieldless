@@ -22,6 +22,8 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | `context.ts` | Wraps `AsyncLocalStorage` and trace-span lifecycles. |
 | `all.ts` | Provides tuple-native `all()`, `race()`, and bounded `mapLimit()` combinators with shared cancellation. |
 | `iterable.ts` | Processes sync/async iterables with tuple collection, sequential workers, and bounded mapping. |
+| `queue.ts` | Implements a bounded async queue with abortable offer/take operations and async iteration. |
+| `pubsub.ts` | Provides in-process broadcast subscriptions with optional replay and clean close behavior. |
 | `singleflight.ts` | Deduplicates concurrent tuple work by key and exposes abortable in-flight entry clearing. |
 | `schedule.ts` | Defines reusable delay/stop policies for retries, polling, and repeated tuple work. |
 | `limiter.ts` | Provides semaphores, permit-wrapped tuple work, and simple rate limiting. |

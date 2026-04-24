@@ -75,6 +75,8 @@ const llmSections = [
       'context',
       'all',
       'iterable',
+      'queue',
+      'pubsub',
       'limiter',
       'singleflight',
       'schema',

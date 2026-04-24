@@ -123,6 +123,12 @@ export {
   writeFileSafe,
 } from "yieldless/node";
 
+export type { PubSub, PubSubOptions, PubSubSubscription } from "yieldless/pubsub";
+export { createPubSub } from "yieldless/pubsub";
+
+export type { AsyncQueue, QueueOperationOptions, QueueOptions } from "yieldless/queue";
+export { createQueue, QueueClosedError } from "yieldless/queue";
+
 export type { AsyncResource, ResourceAcquire, ResourceRelease } from "yieldless/resource";
 export { acquireResource } from "yieldless/resource";
 

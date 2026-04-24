@@ -94,6 +94,14 @@
       "types": "./dist/iterable.d.ts",
       "import": "./dist/iterable.js"
     },
+    "./queue": {
+      "types": "./dist/queue.d.ts",
+      "import": "./dist/queue.js"
+    },
+    "./pubsub": {
+      "types": "./dist/pubsub.d.ts",
+      "import": "./dist/pubsub.js"
+    },
     "./schedule": {
       "types": "./dist/schedule.d.ts",
       "import": "./dist/schedule.js"

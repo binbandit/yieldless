@@ -13,6 +13,8 @@ The suite is organized by concern rather than by fixture-heavy integration scaff
 | `env.test.ts` | Required/optional environment readers, key picking, and sync/async schema-backed environment parsing. |
 | `concurrency.test.ts` | `all()`, `mapLimit()`, `race()`, and `runTaskGroup()` cancellation semantics. |
 | `iterable.test.ts` | Sync/async iterable collection, sequential tuple workers, bounded mapping, first-error abort, and validation. |
+| `queue.test.ts` | Bounded async queue order, backpressure, abort, close, and async iteration behavior. |
+| `pubsub.test.ts` | Broadcast delivery, replay, subscription cleanup, and close behavior. |
 | `schedule.test.ts` | Reusable schedule policies, composed stop/delay decisions, scheduled tuple loops, and validation. |
 | `limiter.test.ts` | Semaphore concurrency, tuple permit wrappers, abortable acquisition, rate pacing, and queue clearing. |
 | `retry.test.ts` | Retry termination, delay callbacks, and abort-aware backoff. |

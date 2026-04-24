@@ -1,0 +1,75 @@
+---
+title: yieldless/pubsub
+description: In-process broadcast channels with async-iterable subscriptions and optional replay.
+---
+
+`yieldless/pubsub` broadcasts values to many local subscribers. It is intentionally in-process and small: publish values, subscribe with `for await`, close subscriptions when they are no longer needed, and optionally replay the latest values to late subscribers.
+
+Use it for CLI progress, Electron main-process status streams, local job updates, or tests that need observable fanout.
+
+## Exports
+
+- `createPubSub<T, E = Error>({ replay, subscriberCapacity }): PubSub<T, E>`
+- `type PubSub<T, E> = { publish, subscribe, close, subscriberCount, closed }`
+- `type PubSubSubscription<T> = AsyncIterable<T> & { next, close }`
+
+## Example
+
+```ts
+import { createPubSub } from "yieldless/pubsub";
+
+const progress = createPubSub<{ id: string; percent: number }>({
+  replay: 1,
+});
+
+const subscription = progress.subscribe();
+
+void (async () => {
+  for await (const update of subscription) {
+    renderProgress(update);
+  }
+})();
+
+progress.publish({ id: "index", percent: 25 });
+```
+
+## Behavior notes
+
+- `publish(value)` returns the number of active subscribers.
+- `replay` defaults to `0`.
+- `subscribe()` returns an async iterable subscription.
+- `subscription.close()` removes that subscriber and closes its internal queue.
+- `close(reason)` closes all subscribers and prevents future publishes.
+- Each subscriber has its own queue. `subscriberCapacity` can bound per-subscriber buffering.
+
+## Good
+
+Use pubsub for local fanout, not remote messaging.
+
+```ts
+const buildEvents = createPubSub<BuildEvent>({ replay: 1 });
+```
+
+Close subscriptions owned by short-lived UI or request scopes.
+
+```ts
+const subscription = buildEvents.subscribe();
+
+try {
+  for await (const event of subscription) {
+    send(event);
+  }
+} finally {
+  subscription.close();
+}
+```
+
+## Avoid
+
+Do not treat it as a durable queue.
+
+```ts
+const orders = createPubSub<Order>();
+```
+
+Use `yieldless/queue` when every item must be processed by a worker. Use `yieldless/pubsub` when every current listener should hear the same update.
