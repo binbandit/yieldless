@@ -1,39 +1,81 @@
-# Docs
+# Yieldless
 
-- [Yieldless](/docs): Native async/await primitives for tuple-based errors, structured concurrency, and Node/Electron workflows.
-- **Guides**
+> Native async/await primitives for tuple-based errors, structured concurrency, and Node/Electron workflows.
 
-- Guides: undefined
-  - [Quickstart](/docs/guides/quickstart): Get a Yieldless application flow working with tuple errors, cancellation, and one realistic boundary.
-  - [Module Selection](/docs/guides/module-selection): Choose the smallest Yieldless module for each kind of application work.
-  - [Design Rules](/docs/guides/design-rules): The principles behind Yieldless and the tradeoffs those principles deliberately make.
-  - [Do and Don't](/docs/guides/do-and-dont): Practical conventions that keep Yieldless code readable instead of ceremonial.
-- **Reference**
+Yieldless is a zero-dependency TypeScript library for tuple-based errors, AbortSignal-driven cancellation, resource cleanup, and practical Node/Electron boundaries without a custom runtime.
 
-- Reference: undefined
-  - [yieldless/error](/docs/reference/error): Tuple-based error handling primitives.
-  - [yieldless/result](/docs/reference/result): Small tuple combinators for readable success and error pipelines.
-  - [yieldless/task](/docs/reference/task): Structured concurrency with a shared AbortSignal and sibling cancellation.
-  - [yieldless/resource](/docs/reference/resource): Native async disposal with acquire and release functions.
-  - [yieldless/di](/docs/reference/di): Reader-lite dependency binding for plain functions.
-  - [yieldless/env](/docs/reference/env): Tuple helpers for required environment variables and schema-backed config parsing.
-  - [yieldless/retry](/docs/reference/retry): Exponential backoff with jitter and abort-aware delays.
-  - [yieldless/signal](/docs/reference/signal): Deadline helpers for AbortSignal-aware work.
-  - [yieldless/timer](/docs/reference/timer): Abort-aware sleep and polling helpers built on native timers.
-  - [yieldless/event](/docs/reference/event): Await one EventTarget or EventEmitter event with abort-aware cleanup.
-  - [yieldless/fetch](/docs/reference/fetch): Native fetch helpers with tuple errors, timeouts, status checks, and JSON parsing.
-  - [yieldless/context](/docs/reference/context): AsyncLocalStorage-based context and a small tracing helper for Node.js.
-  - [yieldless/all](/docs/reference/all): Tuple-aware parallel combinators that share cancellation.
-  - [yieldless/iterable](/docs/reference/iterable): Tuple helpers for sync and async iterable workflows.
-  - [yieldless/singleflight](/docs/reference/singleflight): Deduplicate concurrent tuple work by key.
-  - [yieldless/schema](/docs/reference/schema): Tuple adapters for safeParse(), parse(), safeParseAsync(), and parseAsync() style validators.
-  - [yieldless/router](/docs/reference/router): Tuple-returning route handlers with HTTP error mapping.
-  - [yieldless/ipc](/docs/reference/ipc): Typed Electron IPC helpers that preserve tuple results across the process boundary.
-  - [yieldless/node](/docs/reference/node): Tuple wrappers for Node filesystem work and child-process execution.
-- **Recipes**
+## Primary Resources
 
-- Recipes: undefined
-  - [Resilient Service Flow](/docs/recipes/resilient-service-flow): A practical backend flow that combines tuples, retries, validation, routing, and cancellation.
-  - [Bounded Batch Work](/docs/recipes/bounded-batch-work): Process lists of API, filesystem, or subprocess work without unbounded parallelism.
-  - [Electron Git Client](/docs/recipes/electron-git-client): An end-to-end shape for a desktop Git app using IPC tuples, abortable subprocesses, and typed renderer calls.
-  - [Electron PR Review Workbench](/docs/recipes/electron-pr-review-workbench): A practical architecture for a GitHub pull-request review desktop app using tuples in the right places and ordinary UI state in the renderer.
+- [Documentation](https://binbandit.github.io/yieldless/docs/)
+- [Full LLM context](https://binbandit.github.io/yieldless/llms-full.txt)
+- [GitHub repository](https://github.com/binbandit/yieldless)
+- [Documentation home as Markdown](https://binbandit.github.io/yieldless/llms.mdx/docs/index.mdx)
+
+## Guides
+
+Conceptual documentation for adopting Yieldless and choosing the right module.
+
+- [Quickstart](https://binbandit.github.io/yieldless/docs/guides/quickstart/): Get a Yieldless application flow working with tuple errors, cancellation, and one realistic boundary.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/quickstart/index.mdx
+- [Module Selection](https://binbandit.github.io/yieldless/docs/guides/module-selection/): Choose the smallest Yieldless module for each kind of application work.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/module-selection/index.mdx
+- [Design Rules](https://binbandit.github.io/yieldless/docs/guides/design-rules/): The principles behind Yieldless and the tradeoffs those principles deliberately make.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/design-rules/index.mdx
+- [Do and Don't](https://binbandit.github.io/yieldless/docs/guides/do-and-dont/): Practical conventions that keep Yieldless code readable instead of ceremonial.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/do-and-dont/index.mdx
+
+## Reference
+
+Per-module API details, examples, behavior notes, and good/avoid usage guidance.
+
+- [yieldless/error](https://binbandit.github.io/yieldless/docs/reference/error/): Tuple-based error handling primitives.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/error/index.mdx
+- [yieldless/result](https://binbandit.github.io/yieldless/docs/reference/result/): Small tuple combinators for readable success and error pipelines.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/result/index.mdx
+- [yieldless/task](https://binbandit.github.io/yieldless/docs/reference/task/): Structured concurrency with a shared AbortSignal and sibling cancellation.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/task/index.mdx
+- [yieldless/resource](https://binbandit.github.io/yieldless/docs/reference/resource/): Native async disposal with acquire and release functions.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/resource/index.mdx
+- [yieldless/di](https://binbandit.github.io/yieldless/docs/reference/di/): Reader-lite dependency binding for plain functions.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/di/index.mdx
+- [yieldless/env](https://binbandit.github.io/yieldless/docs/reference/env/): Tuple helpers for required environment variables and schema-backed config parsing.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/env/index.mdx
+- [yieldless/retry](https://binbandit.github.io/yieldless/docs/reference/retry/): Exponential backoff with jitter and abort-aware delays.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/retry/index.mdx
+- [yieldless/signal](https://binbandit.github.io/yieldless/docs/reference/signal/): Deadline helpers for AbortSignal-aware work.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/signal/index.mdx
+- [yieldless/timer](https://binbandit.github.io/yieldless/docs/reference/timer/): Abort-aware sleep and polling helpers built on native timers.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/timer/index.mdx
+- [yieldless/event](https://binbandit.github.io/yieldless/docs/reference/event/): Await one EventTarget or EventEmitter event with abort-aware cleanup.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/event/index.mdx
+- [yieldless/fetch](https://binbandit.github.io/yieldless/docs/reference/fetch/): Native fetch helpers with tuple errors, timeouts, status checks, and JSON parsing.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/fetch/index.mdx
+- [yieldless/context](https://binbandit.github.io/yieldless/docs/reference/context/): AsyncLocalStorage-based context and a small tracing helper for Node.js.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/context/index.mdx
+- [yieldless/all](https://binbandit.github.io/yieldless/docs/reference/all/): Tuple-aware parallel combinators that share cancellation.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/all/index.mdx
+- [yieldless/iterable](https://binbandit.github.io/yieldless/docs/reference/iterable/): Tuple helpers for sync and async iterable workflows.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/iterable/index.mdx
+- [yieldless/singleflight](https://binbandit.github.io/yieldless/docs/reference/singleflight/): Deduplicate concurrent tuple work by key.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/singleflight/index.mdx
+- [yieldless/schema](https://binbandit.github.io/yieldless/docs/reference/schema/): Tuple adapters for safeParse(), parse(), safeParseAsync(), and parseAsync() style validators.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/schema/index.mdx
+- [yieldless/router](https://binbandit.github.io/yieldless/docs/reference/router/): Tuple-returning route handlers with HTTP error mapping.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/router/index.mdx
+- [yieldless/ipc](https://binbandit.github.io/yieldless/docs/reference/ipc/): Typed Electron IPC helpers that preserve tuple results across the process boundary.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/ipc/index.mdx
+- [yieldless/node](https://binbandit.github.io/yieldless/docs/reference/node/): Tuple wrappers for Node filesystem work and child-process execution.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/reference/node/index.mdx
+
+## Recipes
+
+End-to-end examples for backend, batch, and Electron workflows.
+
+- [Resilient Service Flow](https://binbandit.github.io/yieldless/docs/recipes/resilient-service-flow/): A practical backend flow that combines tuples, retries, validation, routing, and cancellation.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/resilient-service-flow/index.mdx
+- [Bounded Batch Work](https://binbandit.github.io/yieldless/docs/recipes/bounded-batch-work/): Process lists of API, filesystem, or subprocess work without unbounded parallelism.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/bounded-batch-work/index.mdx
+- [Electron Git Client](https://binbandit.github.io/yieldless/docs/recipes/electron-git-client/): An end-to-end shape for a desktop Git app using IPC tuples, abortable subprocesses, and typed renderer calls.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/electron-git-client/index.mdx
+- [Electron PR Review Workbench](https://binbandit.github.io/yieldless/docs/recipes/electron-pr-review-workbench/): A practical architecture for a GitHub pull-request review desktop app using tuples in the right places and ordinary UI state in the renderer.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/electron-pr-review-workbench/index.mdx
