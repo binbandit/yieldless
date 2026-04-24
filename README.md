@@ -16,6 +16,7 @@ The next layer adds practical backend pieces on top of those primitives:
 
 - retry loops with abort-aware backoff
 - deadline helpers for any abort-aware operation
+- fetch helpers with status, timeout, and JSON handling
 - result combinators for success/error pipelines
 - async context storage for request-scoped data and spans
 - tuple-native parallel and bounded-work combinators
@@ -178,6 +179,24 @@ const [error, response] = await safeTry(
 ```
 
 If you need the lower-level signal for a longer scope, `createTimeoutSignal()` gives you a disposable derived signal that inherits parent cancellation too.
+
+### `yieldless/fetch`
+
+`fetchSafe` and `fetchJsonSafe` keep native `fetch()` calls in tuple form while adding common production edges.
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const [error, user] = await fetchJsonSafe<{ id: string }>(
+  `https://api.example.com/users/${userId}`,
+  {
+    timeoutMs: 5_000,
+    signal,
+  },
+);
+```
+
+Non-ok responses return `HttpStatusError`, JSON parser failures return `JsonParseError`, and timeouts use the same abort primitives as the rest of the library.
 
 ### `yieldless/context`
 

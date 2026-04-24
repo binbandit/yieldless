@@ -17,6 +17,16 @@ export { inject } from "yieldless/di";
 export type { MatchBranches, SafeResult } from "yieldless/error";
 export { err, match, ok, safeTry, safeTrySync, unwrap } from "yieldless/error";
 
+export type { FetchJsonError, FetchSafeError, FetchSafeOptions } from "yieldless/fetch";
+export {
+  fetchJsonSafe,
+  fetchSafe,
+  FetchUnavailableError,
+  HttpStatusError,
+  JsonParseError,
+  readJsonSafe,
+} from "yieldless/fetch";
+
 export type {
   AbortSignalIpcBridge,
   AbortableIpcBridge,

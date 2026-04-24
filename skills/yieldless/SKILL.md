@@ -125,6 +125,21 @@ const response = await withTimeout(
 
 Use `withTimeout` for one call and `createTimeoutSignal` when several operations need to share the same budget.
 
+### yieldless/fetch
+
+Native `fetch()` helpers with tuple errors, status handling, JSON parsing, and timeout support.
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const [error, body] = await fetchJsonSafe<{ ok: boolean }>(url, {
+  timeoutMs: 5_000,
+  signal,
+});
+```
+
+Use `fetchSafe` when the caller needs the raw `Response`. Use `fetchJsonSafe` for JSON APIs. Non-ok responses become `HttpStatusError`; JSON parser failures become `JsonParseError`.
+
 ### yieldless/context
 
 `AsyncLocalStorage` wrapper. Not a global container.

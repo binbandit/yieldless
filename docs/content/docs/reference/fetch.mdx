@@ -1,0 +1,57 @@
+---
+title: yieldless/fetch
+description: Native fetch helpers with tuple errors, timeouts, status checks, and JSON parsing.
+---
+
+`yieldless/fetch` keeps HTTP calls on the platform `fetch()` API while handling the production chores that otherwise show up in every service: tuple errors, deadlines, non-2xx responses, JSON parsing, and abort forwarding.
+
+## Exports
+
+- `fetchSafe(input, options): Promise<SafeResult<Response, FetchSafeError>>`
+- `fetchJsonSafe<T>(input, options): Promise<SafeResult<T, FetchJsonError>>`
+- `readJsonSafe<T>(response): Promise<SafeResult<T, JsonParseError>>`
+- `class HttpStatusError extends Error`
+- `class JsonParseError extends Error`
+- `class FetchUnavailableError extends Error`
+- `type FetchSafeOptions = RequestInit & { timeoutMs?, isOkStatus?, fetch? }`
+
+## Example
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const [error, user] = await fetchJsonSafe<{ id: string; name: string }>(
+  `https://api.example.com/users/${userId}`,
+  {
+    headers: {
+      accept: "application/json",
+    },
+    timeoutMs: 5_000,
+    signal,
+  },
+);
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, user] as const;
+```
+
+## Status handling
+
+`fetchSafe()` treats `response.ok` as success by default. Override `isOkStatus` when an API uses a status like `304` or `409` as part of a normal workflow.
+
+```ts
+const [error, response] = await fetchSafe(url, {
+  isOkStatus: (response) => response.ok || response.status === 304,
+});
+```
+
+## Behavior notes
+
+- Request options are ordinary `RequestInit` options.
+- `timeoutMs` derives an `AbortSignal` and cleans up the timer when the request settles.
+- Non-ok responses return `HttpStatusError` with the original `response` attached.
+- `fetchJsonSafe()` only parses JSON after `fetchSafe()` succeeds.
+- `readJsonSafe()` wraps parser failures in `JsonParseError` instead of throwing.

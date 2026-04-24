@@ -42,6 +42,10 @@
       "types": "./dist/di.d.ts",
       "import": "./dist/di.js"
     },
+    "./fetch": {
+      "types": "./dist/fetch.d.ts",
+      "import": "./dist/fetch.js"
+    },
     "./retry": {
       "types": "./dist/retry.d.ts",
       "import": "./dist/retry.js"
