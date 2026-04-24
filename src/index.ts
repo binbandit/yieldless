@@ -93,6 +93,16 @@ export type {
 export { collect, forEach, mapAsyncLimit } from "yieldless/iterable";
 
 export type {
+  AcquirePermitOptions,
+  LimitedOperation,
+  RateLimiter,
+  RateLimiterOptions,
+  Semaphore,
+  SemaphorePermit,
+} from "yieldless/limiter";
+export { createRateLimiter, createSemaphore, withPermit } from "yieldless/limiter";
+
+export type {
   CommandOptions,
   CommandResult,
   FilePath,
@@ -142,6 +152,28 @@ export {
 
 export type { RetryJitter, RetryOperation, RetryOptions, RetryState } from "yieldless/retry";
 export { safeRetry } from "yieldless/retry";
+
+export type {
+  ExponentialBackoffOptions,
+  RunScheduleOptions,
+  ScheduleDecision,
+  ScheduleJitter,
+  SchedulePolicy,
+  ScheduleState,
+  ScheduledOperation,
+} from "yieldless/schedule";
+export {
+  composeSchedules,
+  continueNow,
+  exponentialBackoff,
+  fixedDelay,
+  getScheduleDecision,
+  maxAttempts,
+  maxElapsedTime,
+  runScheduled,
+  stopSchedule,
+  waitForSchedule,
+} from "yieldless/schedule";
 
 export type {
   TimeoutSignal,

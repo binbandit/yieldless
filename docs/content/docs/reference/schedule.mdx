@@ -1,0 +1,97 @@
+---
+title: yieldless/schedule
+description: Reusable delay and stop policies for tuple retry and polling loops.
+---
+
+`yieldless/schedule` gives timing policy a name without introducing a runtime. A schedule is just a function from the latest attempt state to a decision: continue or stop, and how long to wait before trying again.
+
+Use it when retry or polling policy is shared across call sites, when tests need to inspect timing decisions, or when a loop needs both a delay policy and a stopping rule.
+
+## Exports
+
+- `type SchedulePolicy<E = unknown> = (state: ScheduleState<E>) => ScheduleDecision`
+- `type ScheduleState<E = unknown> = { attempt, elapsedMs, error, signal }`
+- `type ScheduleDecision = { continue: boolean, delayMs: number }`
+- `fixedDelay(delayMs): SchedulePolicy`
+- `exponentialBackoff({ baseDelayMs, factor, maxDelayMs, jitter }): SchedulePolicy`
+- `maxAttempts(attempts): SchedulePolicy`
+- `maxElapsedTime(maxElapsedMs): SchedulePolicy`
+- `composeSchedules(...policies): SchedulePolicy`
+- `getScheduleDecision(policy, state): ScheduleDecision`
+- `waitForSchedule(policy, state): Promise<SafeResult<void, E>>`
+- `runScheduled(operation, policy, options): Promise<SafeResult<T, E>>`
+- `continueNow(): SchedulePolicy`
+- `stopSchedule(): SchedulePolicy`
+
+## Example
+
+```ts
+import {
+  composeSchedules,
+  exponentialBackoff,
+  maxAttempts,
+  runScheduled,
+} from "yieldless/schedule";
+
+const schedule = composeSchedules(
+  exponentialBackoff({
+    baseDelayMs: 100,
+    jitter: "full",
+    maxDelayMs: 2_000,
+  }),
+  maxAttempts(5),
+);
+
+const [error, user] = await runScheduled(
+  (attempt, signal) => loadUserFromApi(userId, { attempt, signal }),
+  schedule,
+  { signal },
+);
+```
+
+## Behavior notes
+
+- `composeSchedules()` stops when any child policy stops.
+- When multiple policies continue, the largest `delayMs` wins.
+- `maxAttempts(3)` allows attempts `1`, `2`, and `3`, then stops before attempt `4`.
+- `waitForSchedule()` returns the latest `error` when the policy stops.
+- `runScheduled()` normalizes thrown operation failures into tuple errors.
+- All waiting is abort-aware through `yieldless/timer`.
+
+## Good
+
+Define retry policy once and reuse it.
+
+```ts
+const apiSchedule = composeSchedules(
+  exponentialBackoff({ baseDelayMs: 150, maxDelayMs: 5_000 }),
+  maxAttempts(4),
+);
+```
+
+Inspect a policy without sleeping.
+
+```ts
+const decision = getScheduleDecision(apiSchedule, {
+  attempt: 2,
+  elapsedMs: 500,
+  signal,
+});
+```
+
+## Avoid
+
+Do not hide business decisions inside a global schedule.
+
+```ts
+const schedule = composeSchedules(exponentialBackoff(), maxAttempts(10));
+```
+
+Prefer naming the boundary-specific reason.
+
+```ts
+const githubApiSchedule = composeSchedules(
+  exponentialBackoff({ baseDelayMs: 250 }),
+  maxAttempts(3),
+);
+```

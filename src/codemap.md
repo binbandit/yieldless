@@ -23,6 +23,8 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 | `all.ts` | Provides tuple-native `all()`, `race()`, and bounded `mapLimit()` combinators with shared cancellation. |
 | `iterable.ts` | Processes sync/async iterables with tuple collection, sequential workers, and bounded mapping. |
 | `singleflight.ts` | Deduplicates concurrent tuple work by key and exposes abortable in-flight entry clearing. |
+| `schedule.ts` | Defines reusable delay/stop policies for retries, polling, and repeated tuple work. |
+| `limiter.ts` | Provides semaphores, permit-wrapped tuple work, and simple rate limiting. |
 | `schema.ts` | Adapts `parse` and `safeParse` style validators into tuple results. |
 | `router.ts` | Converts tuple handlers into Hono-style JSON responses and HTTP errors. |
 | `ipc.ts` | Preserves tuple success and error payloads across Electron IPC boundaries. |
@@ -31,7 +33,7 @@ The source tree follows a flat module-per-capability layout. Each file owns one 
 
 ## Data And Control Flow
 1. `error.ts` establishes the tuple contract shared across the repo.
-2. Control-flow helpers like `task.ts`, `retry.ts`, `context.ts`, and `all.ts` compose around that contract while forwarding `AbortSignal`, including bounded batch work through `mapLimit()`.
+2. Control-flow helpers like `task.ts`, `retry.ts`, `context.ts`, `all.ts`, `schedule.ts`, and `limiter.ts` compose around that contract while forwarding `AbortSignal`, including bounded batch work through `mapLimit()`.
 3. Boundary modules adapt external APIs into tuple form instead of introducing another result type.
 4. `index.ts` exposes the same modules as a coherent package while preserving direct subpath imports for tree-shaking and mental clarity.
 

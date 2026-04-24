@@ -14,7 +14,9 @@ Yieldless is easiest to adopt when you choose one small module at the boundary w
 | Run related promise work together | `yieldless/task` | Shared `AbortSignal` and sibling failure cleanup. |
 | Run tuple tasks in parallel | `yieldless/all` | Tuple-native `all()`, `race()`, and fixed-list `mapLimit()`. |
 | Process sync or async streams of values | `yieldless/iterable` | `collect()`, sequential `forEach()`, and bounded iterable mapping. |
+| Protect shared capacity or API quota | `yieldless/limiter` | Semaphores and rate limiters for explicit backpressure. |
 | Retry transient tuple failures | `yieldless/retry` | Exponential backoff with jitter and abort-aware waits. |
+| Reuse retry or polling timing rules | `yieldless/schedule` | Composable delay and stop policies without a scheduler. |
 | Apply a time budget | `yieldless/signal` | Disposable derived deadline signals. |
 | Sleep or poll | `yieldless/timer` | Abort-aware timer utilities without a scheduler. |
 | Fetch JSON or inspect HTTP status | `yieldless/fetch` | Native fetch with tuple errors, timeouts, and JSON parsing. |
