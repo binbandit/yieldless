@@ -51,9 +51,11 @@ What Yieldless covers [#what-yieldless-covers]
 Yieldless is intentionally modular. You can adopt one boundary at a time:
 
 * `error` and `result` for tuple creation, folding, and composition
-* `task`, `all`, `iterable`, `retry`, `signal`, and `timer` for async control flow
+* `task`, `all`, `iterable`, `queue`, `pubsub`, and `limiter` for async coordination and load control
+* `retry`, `schedule`, `signal`, `timer`, and `breaker` for resilient boundaries
+* `cache`, `batcher`, and `singleflight` for repeated, keyed, and duplicate work
 * `fetch`, `node`, `event`, and `ipc` for common platform boundaries
 * `schema`, `env`, and `router` for application edges
-* `resource`, `di`, `context`, and `singleflight` for lifecycle and ergonomics
+* `resource`, `di`, `context`, and `test` for lifecycle, ergonomics, and deterministic tests
 
 Start with [Module Selection](https://binbandit.github.io/yieldless/docs/guides/module-selection/) if you are deciding which piece to reach for first.

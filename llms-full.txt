@@ -51,10 +51,12 @@ What Yieldless covers [#what-yieldless-covers]
 Yieldless is intentionally modular. You can adopt one boundary at a time:
 
 * `error` and `result` for tuple creation, folding, and composition
-* `task`, `all`, `iterable`, `retry`, `signal`, and `timer` for async control flow
+* `task`, `all`, `iterable`, `queue`, `pubsub`, and `limiter` for async coordination and load control
+* `retry`, `schedule`, `signal`, `timer`, and `breaker` for resilient boundaries
+* `cache`, `batcher`, and `singleflight` for repeated, keyed, and duplicate work
 * `fetch`, `node`, `event`, and `ipc` for common platform boundaries
 * `schema`, `env`, and `router` for application edges
-* `resource`, `di`, `context`, and `singleflight` for lifecycle and ergonomics
+* `resource`, `di`, `context`, and `test` for lifecycle, ergonomics, and deterministic tests
 
 Start with [Module Selection](https://binbandit.github.io/yieldless/docs/guides/module-selection/) if you are deciding which piece to reach for first.
 
@@ -67,9 +69,10 @@ The fastest way to understand Yieldless is to wire the core pieces together:
 
 1. `yieldless/error` to keep failures in tuple form
 2. `yieldless/result` when tuple branches need light composition
-3. `yieldless/task`, `yieldless/all`, and `yieldless/iterable` to fan work out and cancel siblings cleanly
-4. `yieldless/retry`, `yieldless/signal`, and `yieldless/timer` for resilient async boundaries
-5. Boundary adapters like `yieldless/fetch`, `yieldless/schema`, `yieldless/router`, `yieldless/ipc`, `yieldless/node`, and `yieldless/env`
+3. `yieldless/task`, `yieldless/all`, `yieldless/iterable`, `yieldless/queue`, `yieldless/pubsub`, and `yieldless/limiter` to fan work out, hand it off, and control pressure
+4. `yieldless/retry`, `yieldless/schedule`, `yieldless/signal`, `yieldless/timer`, and `yieldless/breaker` for resilient async boundaries
+5. `yieldless/cache`, `yieldless/batcher`, and `yieldless/singleflight` for repeated, keyed, and duplicate work
+6. Boundary adapters like `yieldless/fetch`, `yieldless/schema`, `yieldless/router`, `yieldless/ipc`, `yieldless/node`, and `yieldless/env`
 
 Install [#install]
 
@@ -233,7 +236,7 @@ const [jobError, job] = await poll(
 );
 ```
 
-The package ships adapters for common backend boundaries:
+The package ships helpers for common backend boundaries and production pressure:
 
 * `yieldless/env` validates startup configuration
 * `yieldless/fetch` wraps HTTP status, JSON parsing, and deadlines
@@ -242,7 +245,14 @@ The package ships adapters for common backend boundaries:
 * `yieldless/ipc` preserves tuple results across Electron IPC
 * `yieldless/node` wraps filesystem and child-process work
 * `yieldless/event` waits for one event with cleanup and abort support
+* `yieldless/schedule` builds reusable retry and repeat policies
+* `yieldless/limiter` protects shared capacity with semaphores and rate limits
+* `yieldless/queue` and `yieldless/pubsub` coordinate in-process workers and subscribers
+* `yieldless/cache` keeps successful read-through loads fresh for a TTL
+* `yieldless/batcher` collapses nearby keyed reads into ordered batches
+* `yieldless/breaker` backs off dependencies that are already failing
 * `yieldless/singleflight` deduplicates duplicate in-flight work
+* `yieldless/test` makes promises, clocks, and abort signals deterministic in tests
 
 A full request flow [#a-full-request-flow]
 
