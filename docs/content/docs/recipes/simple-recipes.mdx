@@ -1,0 +1,242 @@
+---
+title: Simple Recipes
+description: Small Yieldless recipes for one feature at a time.
+---
+
+These recipes are intentionally tiny. Each one shows one common task, the module to reach for, and the basic tuple branch you should expect to write.
+
+Use these when the larger recipes feel like too much ceremony for the problem in front of you.
+
+## Read a text file
+
+```ts
+import { readFileSafe } from "yieldless/node";
+
+const [error, contents] = await readFileSafe("config.json");
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, contents] as const;
+```
+
+Use this at Node file boundaries where missing files, permissions, or bad paths are normal operational failures.
+
+## Parse JSON without throwing
+
+```ts
+import { safeTrySync } from "yieldless/error";
+
+const [error, value] = safeTrySync(() => JSON.parse(contents) as Config);
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, value] as const;
+```
+
+Use `safeTrySync()` for sync code that might throw.
+
+## Fetch JSON with a timeout
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const [error, user] = await fetchJsonSafe<User>(
+  `https://api.example.com/users/${userId}`,
+  {
+    headers: { accept: "application/json" },
+    timeoutMs: 5_000,
+    signal,
+  },
+);
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, user] as const;
+```
+
+Use this when success means "the HTTP status was OK and the response body was valid JSON."
+
+## Process items one at a time
+
+```ts
+import { forEach } from "yieldless/iterable";
+
+const processed: ProcessedItem[] = [];
+
+const [error] = await forEach(
+  items,
+  async (item, _index, signal) => {
+    const [itemError, processedItem] = await processItem(item, signal);
+
+    if (itemError) {
+      return [itemError, null] as const;
+    }
+
+    processed.push(processedItem);
+    return [null, undefined] as const;
+  },
+  { signal },
+);
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, processed] as const;
+```
+
+Use `forEach()` when you want order, backpressure, and a stop-on-first-error flow.
+
+## Map items with bounded concurrency
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [error, thumbnails] = await mapAsyncLimit(
+  imagePaths,
+  (path, _index, signal) => renderThumbnail(path, signal),
+  { concurrency: 4, signal },
+);
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, thumbnails] as const;
+```
+
+Use this when each item produces one output and you want more throughput without unbounded `Promise.all()`.
+
+## Retry one flaky call
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+import { safeRetry } from "yieldless/retry";
+
+const [error, user] = await safeRetry(
+  (_attempt, attemptSignal) =>
+    fetchJsonSafe<User>(`https://api.example.com/users/${userId}`, {
+      timeoutMs: 3_000,
+      signal: attemptSignal,
+    }),
+  {
+    maxAttempts: 3,
+    baseDelayMs: 150,
+    signal,
+  },
+);
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, user] as const;
+```
+
+Retry the unreliable boundary, not the whole business flow.
+
+## Cache a read-through lookup
+
+```ts
+import { createCache } from "yieldless/cache";
+import { fetchJsonSafe } from "yieldless/fetch";
+
+const users = createCache<string, User>({
+  maxSize: 500,
+  ttlMs: 60_000,
+  load: (userId, signal) =>
+    fetchJsonSafe<User>(`https://api.example.com/users/${userId}`, {
+      signal,
+    }),
+});
+
+const [error, user] = await users.get(userId, { signal });
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, user] as const;
+```
+
+Successful loads are cached. Failed loads are returned but not stored.
+
+## Poll until a job is ready
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+import { poll } from "yieldless/timer";
+
+class JobNotReadyError extends Error {
+  constructor() {
+    super("Job is not ready yet.");
+    this.name = "JobNotReadyError";
+  }
+}
+
+const [error, job] = await poll(
+  async (_attempt, attemptSignal) => {
+    const [fetchError, current] = await fetchJsonSafe<Job>(
+      `https://api.example.com/jobs/${jobId}`,
+      {
+        signal: attemptSignal,
+      },
+    );
+
+    if (fetchError) {
+      return [fetchError, null] as const;
+    }
+
+    return current.status === "ready"
+      ? [null, current] as const
+      : [new JobNotReadyError(), null] as const;
+  },
+  {
+    intervalMs: 1_000,
+    timeoutMs: 30_000,
+    signal,
+    shouldContinue: (error) => error instanceof JobNotReadyError,
+  },
+);
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, job] as const;
+```
+
+Use `poll()` when "not ready yet" is expected and the caller still needs a firm timeout. `poll()` repeats while the operation returns an error tuple, then stops when it returns `[null, value]`.
+
+## Run a command safely
+
+```ts
+import { runCommandSafe } from "yieldless/node";
+
+const [error, result] = await runCommandSafe("git", ["status", "--short"], {
+  cwd: workspacePath,
+  timeoutMs: 10_000,
+  maxOutputBytes: 512 * 1024,
+  signal,
+});
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, result.stdout] as const;
+```
+
+Use `runCommandSafe(file, args)` when command failure is something your app should display, log, or recover from.
+
+## Need a full version?
+
+- [Beginner Tutorial](/docs/guides/beginner-tutorial) builds a complete file-to-API workflow step by step.
+- [Read IDs and Fetch Records](/docs/recipes/read-ids-fetch-records) is a focused recipe for `readFileSafe()`, `forEach()`, and `fetchJsonSafe()`.
+- [Examples](/docs/guides/examples) has larger compositions once these single-feature recipes feel comfortable.

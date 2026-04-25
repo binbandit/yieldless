@@ -1,0 +1,329 @@
+---
+title: Beginner Tutorial
+description: Learn Yieldless by building one small file-to-API workflow from the first tuple to a complete function.
+---
+
+This tutorial starts with ordinary TypeScript and adds Yieldless one piece at a time.
+
+The goal is small on purpose: read IDs from a text file, turn each line into a number, fetch one JSON record for each ID, and return the accumulated records.
+
+## The one shape to learn first
+
+Yieldless helpers return a tuple:
+
+```ts
+type SafeResult<T, E = Error> =
+  | readonly [error: E, value: null]
+  | readonly [error: null, value: T];
+```
+
+That means most Yieldless code follows this rhythm:
+
+```ts
+const [error, value] = await somethingSafe();
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, value] as const;
+```
+
+The branch is not boilerplate to hide. It is where you decide what should happen when that boundary fails.
+
+## Install
+
+```bash
+pnpm add yieldless
+```
+
+Import from the small module you need:
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+import { forEach } from "yieldless/iterable";
+import { readFileSafe } from "yieldless/node";
+```
+
+## Step 1: read a file without throwing
+
+`readFileSafe()` wraps Node's file read in tuple form.
+
+```ts
+import { readFileSafe } from "yieldless/node";
+
+const [readError, contents] = await readFileSafe("ids.txt");
+
+if (readError) {
+  return [readError, null] as const;
+}
+```
+
+If the file does not exist, the error is returned. Your function does not throw unless you choose to throw.
+
+## Step 2: parse lines into IDs
+
+Keep parsing as plain TypeScript. Return the same tuple shape when the file contains bad input.
+
+```ts
+import type { SafeResult } from "yieldless/error";
+
+class InvalidIdFileError extends Error {
+  readonly line: number;
+
+  constructor(line: number, value: string) {
+    super(`Expected a positive integer on line ${String(line)}, got "${value}".`);
+    this.name = "InvalidIdFileError";
+    this.line = line;
+  }
+}
+
+function parseIds(contents: string): SafeResult<number[], InvalidIdFileError> {
+  const ids: number[] = [];
+
+  for (const [index, line] of contents.split(/\r?\n/).entries()) {
+    const value = line.trim();
+
+    if (value === "" || value.startsWith("#")) {
+      continue;
+    }
+
+    const id = Number(value);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return [new InvalidIdFileError(index + 1, value), null] as const;
+    }
+
+    ids.push(id);
+  }
+
+  return [null, ids] as const;
+}
+```
+
+This accepts files like:
+
+```txt
+101
+102
+
+# comments are fine
+103
+```
+
+## Step 3: fetch one record
+
+`fetchJsonSafe()` wraps `fetch()`, non-2xx statuses, timeouts, and JSON parsing in one tuple.
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+interface User {
+  readonly id: number;
+  readonly name: string;
+}
+
+async function fetchUserById(
+  apiBaseUrl: string,
+  id: number,
+  signal: AbortSignal,
+) {
+  const url = new URL(`/users/${String(id)}`, apiBaseUrl);
+
+  return await fetchJsonSafe<User>(url, {
+    headers: { accept: "application/json" },
+    timeoutMs: 5_000,
+    signal,
+  });
+}
+```
+
+The `signal` matters. It lets a caller cancel the whole workflow, and it lets Yieldless stop in-progress work when a helper decides the operation should end.
+
+## Step 4: use forEach to accumulate results
+
+`forEach()` runs one item at a time. That is useful when order matters, when the remote API should not be hit in parallel, or when you want the first failure to stop the rest of the file.
+
+```ts
+import { forEach } from "yieldless/iterable";
+
+const users: User[] = [];
+
+const [loadError] = await forEach(
+  ids,
+  async (id, _index, signal) => {
+    const [fetchError, user] = await fetchUserById(apiBaseUrl, id, signal);
+
+    if (fetchError) {
+      return [fetchError, null] as const;
+    }
+
+    users.push(user);
+    return [null, undefined] as const;
+  },
+  { signal: parentSignal },
+);
+
+if (loadError) {
+  return [loadError, null] as const;
+}
+
+return [null, users] as const;
+```
+
+The worker returns a tuple too. If it returns `[error, null]`, `forEach()` stops and gives you that error.
+
+## The complete function
+
+```ts
+import type { SafeResult } from "yieldless/error";
+import { fetchJsonSafe } from "yieldless/fetch";
+import { forEach } from "yieldless/iterable";
+import { readFileSafe } from "yieldless/node";
+
+interface User {
+  readonly id: number;
+  readonly name: string;
+}
+
+interface LoadUsersOptions {
+  readonly apiBaseUrl: string;
+  readonly signal?: AbortSignal;
+}
+
+class InvalidIdFileError extends Error {
+  readonly line: number;
+
+  constructor(line: number, value: string) {
+    super(`Expected a positive integer on line ${String(line)}, got "${value}".`);
+    this.name = "InvalidIdFileError";
+    this.line = line;
+  }
+}
+
+function parseIds(contents: string): SafeResult<number[], InvalidIdFileError> {
+  const ids: number[] = [];
+
+  for (const [index, line] of contents.split(/\r?\n/).entries()) {
+    const value = line.trim();
+
+    if (value === "" || value.startsWith("#")) {
+      continue;
+    }
+
+    const id = Number(value);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return [new InvalidIdFileError(index + 1, value), null] as const;
+    }
+
+    ids.push(id);
+  }
+
+  return [null, ids] as const;
+}
+
+async function fetchUserById(
+  apiBaseUrl: string,
+  id: number,
+  signal: AbortSignal,
+) {
+  const url = new URL(`/users/${String(id)}`, apiBaseUrl);
+
+  return await fetchJsonSafe<User>(url, {
+    headers: { accept: "application/json" },
+    timeoutMs: 5_000,
+    signal,
+  });
+}
+
+export async function loadUsersFromIdFile(
+  filePath: string,
+  options: LoadUsersOptions,
+): Promise<SafeResult<User[], Error>> {
+  const [readError, contents] = await readFileSafe(filePath);
+
+  if (readError) {
+    return [readError, null] as const;
+  }
+
+  const [parseError, ids] = parseIds(contents);
+
+  if (parseError) {
+    return [parseError, null] as const;
+  }
+
+  const users: User[] = [];
+
+  const [loadError] = await forEach(
+    ids,
+    async (id, _index, signal) => {
+      const [fetchError, user] = await fetchUserById(
+        options.apiBaseUrl,
+        id,
+        signal,
+      );
+
+      if (fetchError) {
+        return [fetchError, null] as const;
+      }
+
+      users.push(user);
+      return [null, undefined] as const;
+    },
+    { signal: options.signal },
+  );
+
+  if (loadError) {
+    return [loadError, null] as const;
+  }
+
+  return [null, users] as const;
+}
+```
+
+Call it from your app boundary:
+
+```ts
+const controller = new AbortController();
+
+const [error, users] = await loadUsersFromIdFile("ids.txt", {
+  apiBaseUrl: "https://api.example.com",
+  signal: controller.signal,
+});
+
+if (error) {
+  console.error(error);
+} else {
+  console.log(users);
+}
+```
+
+## When to change the shape
+
+Use `forEach()` when you want sequential side effects and a manually accumulated result.
+
+Use `mapAsyncLimit()` when every item returns a value and you want Yieldless to collect the array for you:
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [error, users] = await mapAsyncLimit(
+  ids,
+  (id, _index, signal) => fetchUserById(apiBaseUrl, id, signal),
+  { concurrency: 4, signal },
+);
+```
+
+Use `safeRetry()` inside the worker when an individual fetch can fail for transient reasons.
+
+Use `createRateLimiter()` before the fetch when the API has a quota.
+
+Use `createCache()` when repeated IDs should reuse successful previous loads.
+
+## What to read next
+
+- [Simple Recipes](/docs/recipes/simple-recipes) for small copy-pasteable patterns.
+- [Read IDs and Fetch Records](/docs/recipes/read-ids-fetch-records) for the same workflow as a recipe.
+- [Module Selection](/docs/guides/module-selection) when you know the problem but not the helper.
+- [yieldless/iterable](/docs/reference/iterable) and [yieldless/fetch](/docs/reference/fetch) for API details.

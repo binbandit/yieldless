@@ -34,6 +34,46 @@ const [error] = await forEach(
 );
 ```
 
+## Accumulating results with forEach
+
+`forEach()` is useful when each item performs side effects and you want to decide exactly what gets accumulated.
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+import { forEach } from "yieldless/iterable";
+
+const users: User[] = [];
+
+const [error] = await forEach(
+  ids,
+  async (id, _index, signal) => {
+    const [fetchError, user] = await fetchJsonSafe<User>(
+      `https://api.example.com/users/${String(id)}`,
+      {
+        timeoutMs: 5_000,
+        signal,
+      },
+    );
+
+    if (fetchError) {
+      return [fetchError, null] as const;
+    }
+
+    users.push(user);
+    return [null, undefined] as const;
+  },
+  { signal },
+);
+
+if (error) {
+  return [error, null] as const;
+}
+
+return [null, users] as const;
+```
+
+Use [Read IDs and Fetch Records](/docs/recipes/read-ids-fetch-records) for the full version that reads and parses IDs from a file first.
+
 ## Bounded mapping
 
 ```ts

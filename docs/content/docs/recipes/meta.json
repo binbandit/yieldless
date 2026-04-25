@@ -1,4 +1,4 @@
 {
   "title": "Recipes",
-  "pages": ["checkout-flow", "customer-import", "resilient-service-flow", "bounded-batch-work", "command-runner", "repository-indexer", "electron-git-client", "electron-pr-review-workbench"]
+  "pages": ["simple-recipes", "read-ids-fetch-records", "checkout-flow", "customer-import", "resilient-service-flow", "bounded-batch-work", "command-runner", "repository-indexer", "electron-git-client", "electron-pr-review-workbench"]
 }
