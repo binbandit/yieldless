@@ -25,6 +25,8 @@ Conceptual documentation for adopting Yieldless and choosing the right module.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/design-rules/index.mdx
 - [Do and Don't](https://binbandit.github.io/yieldless/docs/guides/do-and-dont/): Practical conventions that keep Yieldless code readable instead of ceremonial.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/do-and-dont/index.mdx
+- [Beginner Tutorial](https://binbandit.github.io/yieldless/docs/guides/beginner-tutorial/): Learn Yieldless by building one small file-to-API workflow from the first tuple to a complete function.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/guides/beginner-tutorial/index.mdx
 
 ## Reference
 
@@ -105,3 +107,7 @@ End-to-end examples for product, backend, batch, and Electron workflows.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/electron-pr-review-workbench/index.mdx
 - [Command Runner](https://binbandit.github.io/yieldless/docs/recipes/command-runner/): Run local tools with live logs, deadlines, output limits, cancellation, and safe argument boundaries.
   - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/command-runner/index.mdx
+- [Read IDs and Fetch Records](https://binbandit.github.io/yieldless/docs/recipes/read-ids-fetch-records/): Read IDs from a file, split them line by line, fetch JSON for each ID, and return the accumulated results.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/read-ids-fetch-records/index.mdx
+- [Simple Recipes](https://binbandit.github.io/yieldless/docs/recipes/simple-recipes/): Small Yieldless recipes for one feature at a time.
+  - Markdown: https://binbandit.github.io/yieldless/llms.mdx/docs/recipes/simple-recipes/index.mdx

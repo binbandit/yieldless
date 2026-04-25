@@ -163,12 +163,30 @@ If you need to wait for eventual consistency, use `poll()` instead of hand-writi
 ```ts
 import { poll } from "yieldless/timer";
 
+class JobNotReadyError extends Error {
+  constructor() {
+    super("Job is not ready yet.");
+    this.name = "JobNotReadyError";
+  }
+}
+
 const [jobError, job] = await poll(
-  (_attempt, signal) => fetchJsonSafe<Job>(jobUrl, { signal }),
+  async (_attempt, signal) => {
+    const [fetchError, current] = await fetchJsonSafe<Job>(jobUrl, { signal });
+
+    if (fetchError) {
+      return [fetchError, null] as const;
+    }
+
+    return current.status === "ready"
+      ? [null, current] as const
+      : [new JobNotReadyError(), null] as const;
+  },
   {
     intervalMs: 1_000,
     timeoutMs: 30_000,
     signal: requestController.signal,
+    shouldContinue: (error) => error instanceof JobNotReadyError,
   },
 );
 ```
@@ -224,6 +242,9 @@ const getUser = honoHandler(async (c) => {
 
 Where to go next [#where-to-go-next]
 
+* Read [Beginner Tutorial](https://binbandit.github.io/yieldless/docs/guides/beginner-tutorial/) if the tuple style is still new and you want one feature built slowly.
+* Read [Simple Recipes](https://binbandit.github.io/yieldless/docs/recipes/simple-recipes/) when you want small, single-feature snippets.
+* Read [Read IDs and Fetch Records](https://binbandit.github.io/yieldless/docs/recipes/read-ids-fetch-records/) for a concrete `forEach()` plus `fetchJsonSafe()` workflow.
 * Read [Examples](https://binbandit.github.io/yieldless/docs/guides/examples/) when you want copy-pasteable small patterns and a few larger compositions.
 * Read [Module Selection](https://binbandit.github.io/yieldless/docs/guides/module-selection/) when you are deciding which helper fits a specific problem.
 * Read [Design Rules](https://binbandit.github.io/yieldless/docs/guides/design-rules/) before you spread the tuple style across a large codebase.

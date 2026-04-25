@@ -1,0 +1,220 @@
+# Read IDs and Fetch Records
+
+
+
+This recipe covers a common first Yieldless workflow:
+
+1. Read a file with one ID per line.
+2. Split and validate the lines.
+3. Turn each ID into a number.
+4. Use `forEach()` to fetch one record at a time.
+5. Accumulate the successful records into an array.
+
+Use this version when you want sequential requests and the first bad line or failed request should stop the whole job.
+
+Input file [#input-file]
+
+```txt
+101
+102
+
+# blank lines and comments are ignored
+103
+```
+
+Complete recipe [#complete-recipe]
+
+```ts
+import type { SafeResult } from "yieldless/error";
+import { fetchJsonSafe } from "yieldless/fetch";
+import { forEach } from "yieldless/iterable";
+import { readFileSafe } from "yieldless/node";
+
+interface Customer {
+  readonly id: number;
+  readonly email: string;
+}
+
+interface LoadCustomersOptions {
+  readonly apiBaseUrl: string;
+  readonly signal?: AbortSignal;
+}
+
+class InvalidCustomerIdError extends Error {
+  readonly line: number;
+
+  constructor(line: number, value: string) {
+    super(`Expected a positive integer on line ${String(line)}, got "${value}".`);
+    this.name = "InvalidCustomerIdError";
+    this.line = line;
+  }
+}
+
+function parseCustomerIds(
+  contents: string,
+): SafeResult<number[], InvalidCustomerIdError> {
+  const ids: number[] = [];
+
+  for (const [index, line] of contents.split(/\r?\n/).entries()) {
+    const value = line.trim();
+
+    if (value === "" || value.startsWith("#")) {
+      continue;
+    }
+
+    const id = Number(value);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return [new InvalidCustomerIdError(index + 1, value), null] as const;
+    }
+
+    ids.push(id);
+  }
+
+  return [null, ids] as const;
+}
+
+function customerUrl(apiBaseUrl: string, id: number): URL {
+  return new URL(`/customers/${String(id)}`, apiBaseUrl);
+}
+
+export async function loadCustomersFromIdFile(
+  filePath: string,
+  options: LoadCustomersOptions,
+): Promise<SafeResult<Customer[], Error>> {
+  const [readError, contents] = await readFileSafe(filePath);
+
+  if (readError) {
+    return [readError, null] as const;
+  }
+
+  const [parseError, ids] = parseCustomerIds(contents);
+
+  if (parseError) {
+    return [parseError, null] as const;
+  }
+
+  const customers: Customer[] = [];
+
+  const [loadError] = await forEach(
+    ids,
+    async (id, _index, signal) => {
+      const [fetchError, customer] = await fetchJsonSafe<Customer>(
+        customerUrl(options.apiBaseUrl, id),
+        {
+          headers: { accept: "application/json" },
+          timeoutMs: 5_000,
+          signal,
+        },
+      );
+
+      if (fetchError) {
+        return [fetchError, null] as const;
+      }
+
+      customers.push(customer);
+      return [null, undefined] as const;
+    },
+    { signal: options.signal },
+  );
+
+  if (loadError) {
+    return [loadError, null] as const;
+  }
+
+  return [null, customers] as const;
+}
+```
+
+Why forEach fits [#why-foreach-fits]
+
+`forEach()` is sequential. The next ID is not fetched until the current worker returns `[null, undefined]`.
+
+That gives you three useful properties:
+
+* The returned `customers` array matches the file order.
+* The API receives one request at a time.
+* The first parse, fetch, status, JSON, timeout, or abort error stops the job.
+
+The worker receives a scoped `signal`. Pass that signal into real I/O such as `fetchJsonSafe()` so cancellation can do useful work.
+
+Calling the recipe [#calling-the-recipe]
+
+```ts
+const controller = new AbortController();
+
+const [error, customers] = await loadCustomersFromIdFile("customer-ids.txt", {
+  apiBaseUrl: "https://api.example.com",
+  signal: controller.signal,
+});
+
+if (error) {
+  console.error(error);
+} else {
+  console.log(customers);
+}
+```
+
+Bounded parallel version [#bounded-parallel-version]
+
+When each ID maps to one result and the API can handle a few concurrent requests, `mapAsyncLimit()` is shorter because it collects the output array for you.
+
+```ts
+import { mapAsyncLimit } from "yieldless/iterable";
+
+const [loadError, customers] = await mapAsyncLimit(
+  ids,
+  (id, _index, signal) =>
+    fetchJsonSafe<Customer>(customerUrl(apiBaseUrl, id), {
+      headers: { accept: "application/json" },
+      timeoutMs: 5_000,
+      signal,
+    }),
+  {
+    concurrency: 4,
+    signal: parentSignal,
+  },
+);
+```
+
+`mapAsyncLimit()` still preserves input order in the returned array.
+
+Common additions [#common-additions]
+
+Add `safeRetry()` inside the worker when one customer fetch can fail transiently:
+
+```ts
+import { safeRetry } from "yieldless/retry";
+
+const [fetchError, customer] = await safeRetry(
+  (_attempt, attemptSignal) =>
+    fetchJsonSafe<Customer>(customerUrl(apiBaseUrl, id), {
+      timeoutMs: 5_000,
+      signal: attemptSignal,
+    }),
+  {
+    maxAttempts: 3,
+    baseDelayMs: 150,
+    signal,
+  },
+);
+```
+
+Add `createRateLimiter()` when the remote API has a quota. Create the limiter once outside the loop, then take a slot inside each worker before the fetch:
+
+```ts
+import { createRateLimiter } from "yieldless/limiter";
+
+const quota = createRateLimiter({
+  limit: 60,
+  intervalMs: 60_000,
+});
+
+const [quotaError] = await quota.takeSafe({ signal });
+
+if (quotaError) {
+  return [quotaError, null] as const;
+}
+```
+
+Add `createCache()` when repeated IDs should reuse previous successful loads instead of making duplicate HTTP requests.

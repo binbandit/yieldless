@@ -37,6 +37,30 @@ if (error) {
 return [null, user] as const;
 ```
 
+Fetching one record by ID [#fetching-one-record-by-id]
+
+Build the URL in normal TypeScript, then pass the active `AbortSignal` into `fetchJsonSafe()`.
+
+```ts
+import { fetchJsonSafe } from "yieldless/fetch";
+
+async function fetchUserById(
+  apiBaseUrl: string,
+  userId: number,
+  signal: AbortSignal,
+) {
+  const url = new URL(`/users/${String(userId)}`, apiBaseUrl);
+
+  return await fetchJsonSafe<User>(url, {
+    headers: { accept: "application/json" },
+    timeoutMs: 5_000,
+    signal,
+  });
+}
+```
+
+This shape works well inside `forEach()`, `mapAsyncLimit()`, `safeRetry()`, and cache loaders because all of them pass a signal to the work they run.
+
 Status handling [#status-handling]
 
 `fetchSafe()` treats `response.ok` as success by default. Override `isOkStatus` when an API uses a status like `304` or `409` as part of a normal workflow.
